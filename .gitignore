@@ -18,6 +18,7 @@
 *.h5
 *.pickle
 checkpoint.*
+*.checkpoint
 
 # IPython
 profile_default/
