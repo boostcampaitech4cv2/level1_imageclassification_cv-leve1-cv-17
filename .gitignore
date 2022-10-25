@@ -187,3 +187,4 @@ cython_debug/
 #.idea/
 
 # End of https://www.toptal.com/developers/gitignore/api/python,jupyternotebooks
+Dataset/__pycache__/MaskDataset.cpython-38.pyc
