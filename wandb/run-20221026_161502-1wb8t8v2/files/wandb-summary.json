@@ -1,0 +1,1 @@
+{"Train F1-Score": {"max": 0.9438339627223592}, "Train Avg Loss": 0.10128870182588234, "Validation F1-Score": {"max": 0.7719428915089013}, "Validation Avg Loss": 0.7633363849350384, "_timestamp": 1666801285.2599354, "_runtime": 378.98013043403625, "_step": 2, "_wandb": {"runtime": 437}}

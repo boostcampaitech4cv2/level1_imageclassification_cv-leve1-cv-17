@@ -21,7 +21,7 @@ class DataAddlabel():
         self.orig_data = orig_data.values.tolist()
 
         self.split_age_gender = defaultdict(list)
-        self.labels_dict = defaultdict(list)
+        self.labeled_datas = []
             
     def data_split_age_gender(self):
         for data in self.orig_data:
@@ -43,6 +43,7 @@ class DataAddlabel():
 
     def update_labels_dict(self, data_list : list, labels : list):
         add_label_data = []
+        label_list = []
 
         for data in data_list:
             image_paths = glob.glob(f'{self.image_dir_path}/{data[-1]}/*.jpg')
@@ -58,8 +59,12 @@ class DataAddlabel():
                 else:
                     label = labels[2]
 
-                add_label_data = data + [image_path, label]
-                self.labels_dict[label].append(add_label_data)
+                if label not in label_list:
+                    label_list.append(label)
+
+            label_list.sort()
+            add_label_data = data + label_list
+            self.labeled_datas.append(add_label_data)
 
     def data_add_label(self):  
         keys = list(self.split_age_gender.keys())
@@ -76,16 +81,8 @@ class DataAddlabel():
                 female_labels = [label + 1 for label in female_labels]
 
     def save_labeld_data(self):
-        labeld_data = []
-        keys = list(self.labels_dict.keys())
-        keys.sort()
-
-        for key in keys:
-            labeld_data += self.labels_dict[key]
-
-        labeld_data = sorted(labeld_data, key=lambda x: x[0])
-
-        labeld_data_df = pd.DataFrame(labeld_data, columns=self.orig_columns+['image_path', 'label'])
+        self.labeled_datas = sorted(self.labeled_datas, key=lambda x: x[0])
+        labeld_data_df = pd.DataFrame(self.labeled_datas, columns=self.orig_columns+['mask', 'incorrect', 'normal'])
         labeld_data_df.to_csv(self.save_path, index=False)
 
 

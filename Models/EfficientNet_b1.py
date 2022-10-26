@@ -1,12 +1,12 @@
 from torchvision import models
 import torch.nn as nn
 
-class EfficientNet_b0(nn.Module):
+class EfficientNet_b1(nn.Module):
     def __init__(self, num_classes=18):
-        super(EfficientNet_b0, self).__init__()
-        self.backbone = models.efficientnet_b0(weights=models.EfficientNet_B0_Weights.DEFAULT)
+        super(EfficientNet_b1, self).__init__()
+        self.backbone = models.efficientnet_b1(weights=models.EfficientNet_B1_Weights.DEFAULT)
         self.classifier = nn.Linear(1000, num_classes)
-        self.name = "EfficientNet_b0"
+        self.name = "EfficientNet_b1"
 
         self.init_params()
         

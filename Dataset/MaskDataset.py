@@ -1,3 +1,4 @@
+from glob import glob
 import pandas as pd
 import numpy as np
 import torch
@@ -5,39 +6,45 @@ from torch.utils.data import Dataset
 import os
 import random
 import cv2
+import glob
+import re
+import torch.nn.functional as F
 
 class MaskDataset(Dataset):
     def __init__(
-        self, 
+        self,
+        image_root_path : str,  
         data_csv_path : str, 
         split_rate : float, 
         train_type : str, ## Train, Validation, Test
         is_inference : bool,
         seed : int,
         transform : None,
+        is_soft_label : bool
         ) -> None:
         super().__init__()
         self.seed_everything(seed)
+        self.image_root_path = image_root_path
         self.data_csv_path = data_csv_path
         self.datas = []
         self.is_inference = is_inference
         self.transform = transform
-        
+        self.is_soft_label = is_soft_label
+
         if self.is_inference:
             self.data_df = pd.read_csv(self.data_csv_path)['ImageID']
             self.datas = [[data] for data in self.data_df.values.tolist()]
         else:
-            self.data_df = pd.read_csv(self.data_csv_path).drop(['id', 'gender', 'race', 'age', 'path'], axis=1)
-            self.data_group = self.data_df.groupby('label')
+            self.data_list = pd.read_csv(self.data_csv_path).values.tolist()
+            random.shuffle(self.data_list)
+            self.split_idx = int(len(self.data_list)*split_rate)
 
-            for label, group in self.data_group:
-                split_idx = int(len(group)*split_rate)
+            if train_type == "Train":
+                self.datas += self.data_list[:self.split_idx]
+            elif train_type == "Validation":
+                self.datas += self.data_list[self.split_idx:]
 
-                if train_type == "Train":
-                    self.datas += list(zip(group['image_path'], [label]*len(group)))[:split_idx]
-                elif train_type == "Validation":
-                    self.datas += list(zip(group['image_path'], [label]*len(group)))[split_idx:]
-
+            self.datas = self.data_add_label(self.datas)
             random.shuffle(self.datas)
 
     def __len__(self):
@@ -66,3 +73,33 @@ class MaskDataset(Dataset):
         torch.cuda.manual_seed(seed)
         torch.backends.cudnn.deterministic = True
         torch.backends.cudnn.benchmark = True
+
+    def data_add_label(self, datas : list):
+        data_list = []
+
+        for data in datas:
+            image_paths = glob.glob(f'{self.image_root_path}/{data[-4]}/*.jpg')
+
+            for image_path in image_paths:
+                status = image_path.split('/')[-1].split('.')[0]
+                status = re.sub('[0-9]', '', status)
+
+                if status == "mask":
+                    label = data[-3]
+                elif status == "incorrect_mask":
+                    label = data[-2]
+                else:
+                    label = data[-1]
+
+                if self.is_soft_label:
+                    label = self.label_smoothing(label)
+                    
+                data_list.append([image_path, label])
+
+        return data_list
+
+    def label_smoothing(self, label : int, alpha = 0.1, num_classes = 18):
+        label = F.one_hot(label, num_classes=num_classes)
+        label = label*(1-alpha) + alpha/num_classes
+
+        return label
