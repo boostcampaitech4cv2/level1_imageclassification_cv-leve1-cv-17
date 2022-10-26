@@ -19,6 +19,10 @@
 *.pickle
 checkpoint.*
 *.checkpoint
+*.yaml
+*.json
+*.wandb
+latest-run
 
 # IPython
 profile_default/
