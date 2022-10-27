@@ -21,7 +21,7 @@ from utils.boards import wandb_init
 from Dataset.dataset import MaskTestDataset, MaskTrainDataset
 from Dataset.data_augmentation import train_transform
 from Models.model import EfficientnetB0, EfficientnetB1, EfficientnetB2
-from Models.loss import LabelSmoothingCrossEntropy
+from Models.loss import LabelSmoothingCrossEntropy, FocalLoss
 
 def seed_everything(seed):
     torch.manual_seed(seed)
@@ -141,8 +141,8 @@ if __name__ == '__main__':
         "batch_size": 32,
         "seed": 41,
         "img_size": (220, 224),
-        "optimizer": "SGD",
-        "loss": "LabelSmoothingCrossEntropy",
+        "optimizer": "AdamW",
+        "loss": "FocalLoss",
         "scheduler": "CosineAnnealingLR",
         "model": "EfficientnetB2",
         "split": "0.2"
@@ -153,15 +153,17 @@ if __name__ == '__main__':
     model.eval()
     
     class_weight = torch.FloatTensor(1 / data_df['label'].value_counts()).to(device)
-    criterion = nn.CrossEntropyLoss().to(device)
+    # criterion = nn.CrossEntropyLoss().to(device)
     # criterion = LabelSmoothingCrossEntropy().to(device)
+    criterion = FocalLoss().to(device)
     
     # optimizer = SGD(model.parameters(), lr=0.001, momentum=0.9)
     optimizer = AdamW(model.parameters(), lr=0.001)
     
     scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=20, eta_min=0.0001)
-    # scheduler = torch.optim.lr_scheduler.CosineAnnealingWarmRestarts(optimizer, T_max=10, eta_min=0.00001)
+    # scheduler = torch.optim.lr_scheduler.CosineAnnealingWarmRestarts(optimizer, T_0=10, T_mult=2, eta_min=0.0001)
     # scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='min', factor=0.1, patience=3, verbose=True, eps=1e-08)
+
     
     gc.collect()
     torch.cuda.empty_cache()

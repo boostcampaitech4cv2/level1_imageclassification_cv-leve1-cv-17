@@ -20,6 +20,7 @@ class LabelSmoothingCrossEntropy(nn.Module):
         return loss.mean()
     
 
+# try this: https://github.com/AdeelH/pytorch-multi-class-focal-loss/blob/master/focal_loss.py
 class FocalLoss(nn.Module):
     def __init__(self, alpha=0.25, gamma=2):
         super(FocalLoss, self).__init__()
@@ -27,7 +28,9 @@ class FocalLoss(nn.Module):
         self.gamma = gamma
     
     def forward(self, x, target):
-        BCE_loss = F.binary_cross_entropy_with_logits(x, target, reduntion='none')
+        # x: (N, C)
+        # target: (N)
+        BCE_loss = F.binary_cross_entropy_with_logits(x, target, reduction='none')
         target = target.type(torch.long)
         at = self.alpha.gather(0, target.data.view(-1))
         pt = torch.exp(-BCE_loss)
