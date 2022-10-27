@@ -191,3 +191,5 @@ cython_debug/
 
 # code directory
 code/
+# wandb directory
+wandb/

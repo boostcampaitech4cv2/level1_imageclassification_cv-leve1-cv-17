@@ -73,6 +73,7 @@ class MaskTrainDataset(Dataset):
         img_path = self.img_dir[index]
         img = cv2.imread(img_path, cv2.IMREAD_COLOR)
         # img = img[193:193+195, 102:102+176]
+        img = img[145:145+244, 76:76+220] # x, y = 0.75 * x, y   w, h = 1.25 * w, h
         img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
         
         if self.transform is not None:
@@ -93,21 +94,23 @@ class MaskTrainDataset(Dataset):
         
 
 class MaskTestDataset(Dataset):
-    def __init__(self, img_path, transform=None):
+    def __init__(self, data_df, transform=None):
         super(Dataset, self).__init__()
         self.df = data_df
-        self.img_path = img_path
+        self.img_dir = self.df['ImageID']
         self.transform = transform
         
     def __getitem__(self, index):
-        image = cv2.imread(self.img_path, cv2.IMREAD_COLOR)
+        img_path = os.path.join(os.getcwd(), 'input', 'data', 'eval', 'images', self.img_dir[index])
+        image = cv2.imread(img_path, cv2.IMREAD_COLOR)
         image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+        image = image[145:145+244, 76:76+220]
         if self.transform is not None:
             image = self.transform(image=image)['image']
         return image
     
     def __len__(self):
-        return len(self.img_path)
+        return len(self.img_dir)
        
 if __name__ == '__main__':
     # os.getcwd() = /opt/ml/project/

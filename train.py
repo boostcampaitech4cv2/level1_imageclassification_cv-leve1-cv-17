@@ -1,5 +1,7 @@
 import random
 import gc
+import os
+from datetime import datetime
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -11,11 +13,14 @@ from torch.optim.lr_scheduler import StepLR
 from torch.utils.data import DataLoader
 from tqdm.auto import tqdm
 from sklearn.metrics import f1_score
+from sklearn.model_selection import StratifiedKFold
 # from torch.utils.tensorboard import SummaryWriter
+import wandb
 
+from utils.boards import wandb_init
 from Dataset.dataset import MaskTestDataset, MaskTrainDataset
 from Dataset.data_augmentation import train_transform
-from Models.model import EfficientnetB0
+from Models.model import EfficientnetB0, EfficientnetB1, EfficientnetB2
 
 def seed_everything(seed):
     torch.manual_seed(seed)
@@ -28,7 +33,7 @@ def seed_everything(seed):
 
     
 def train(model, optimizer, train_loader, val_loader, criterion, scheduler, device):
-    seed_everything(41) # seed = 41
+    seed_everything(41) # seed = 41 or 444? 
     
     # -- settings
     model.to(device)
@@ -64,6 +69,7 @@ def train(model, optimizer, train_loader, val_loader, criterion, scheduler, devi
         val_loss, val_score = validation(model, criterion, val_loader, device)
         
         print(f'Epoch: {epoch}, Train Loss: {tr_loss:.4f}, Train Score: {train_score:.4f}, Val Loss: {val_loss:.4f}, Val Score: {val_score:.4f}')
+        wandb.log({'train_loss': tr_loss, 'train_score': train_score, 'val_loss': val_loss, 'val_score': val_score})
         
         if scheduler is not None:
             scheduler.step()
@@ -72,7 +78,11 @@ def train(model, optimizer, train_loader, val_loader, criterion, scheduler, devi
             best_model = model
             best_score = val_score
             
+        
+            
         gc.collect()
+    
+    torch.save(best_model.state_dict(), f'{os.getcwd()}/Models/model_{datetime.today()}.pth')
     
     return best_model, best_score
 
@@ -118,12 +128,26 @@ if __name__ == '__main__':
     train_loader = DataLoader(train_dataset, batch_size=32, shuffle=True, num_workers=4)
     val_loader = DataLoader(val_dataset, batch_size=32, shuffle=False, num_workers=4)
     
-    model = EfficientnetB0()
+    config = {
+        "learning_rate": 0.001,
+        "epochs": 20,
+        "batch_size": 32,
+        "seed": 41,
+        "img_size": (220, 224),
+        "optimizer": "SGD",
+        "loss": "CrossEntropyLoss",
+        "scheduler": "CosineAnnealingLR",
+        "model": "EfficientnetB2",
+        "split": "0.2"
+    }
+    wandb_init(config)
+    
+    model = EfficientnetB2()
     model.eval()
     
     criterion = nn.CrossEntropyLoss().to(device)
     
-    optimizer = SGD(model.parameters(), lr=0.0001, momentum=0.9)
+    optimizer = SGD(model.parameters(), lr=0.001, momentum=0.9)
     scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=10, eta_min=0.00001)
     
     gc.collect()

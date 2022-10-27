@@ -15,6 +15,41 @@ class EfficientnetB0(nn.Module):
         x = self.fc(x)
         return x
     
+class EfficientnetB1(nn.Module):
+    def __init__(self, num_classes=18):
+        super(EfficientnetB1, self).__init__()
+        self.backbone = models.efficientnet_b1(weights=models.EfficientNet_B1_Weights.DEFAULT)
+        self.fc = nn.Linear(1000, num_classes)
+    
+    def forward(self, x):
+        x = self.backbone(x)
+        x = self.fc(x)
+        return x
+
+class EfficientnetB2(nn.Module):
+    def __init__(self, num_classes=18):
+        super(EfficientnetB2, self).__init__()
+        self.backbone = models.efficientnet_b2(weights=models.EfficientNet_B2_Weights.DEFAULT)
+        self.fc = nn.Linear(1000, num_classes)
+    
+    def forward(self, x):
+        x = self.backbone(x)
+        x = self.fc(x)
+        return x
+    
+class EfficientnetB3(nn.Module):
+    def __init__(self, num_classes=18):
+        super(EfficientnetB3, self).__init__()
+        self.backbone = models.efficientnet_b3(weights=models.EfficientNet_B3_Weights.DEFAULT)
+        self.fc = nn.Linear(1000, num_classes)
+    
+    def forward(self, x):
+        x = self.backbone(x)
+        x = self.fc(x)
+        return x
+    
+    
+    
     
 if __name__ == '__main__':
     model = EfficientnetB0()
