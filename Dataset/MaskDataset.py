@@ -21,7 +21,7 @@ class MaskDataset(Dataset):
         is_soft_label : bool
         ) -> None:
         super().__init__()
-        self.seed_everything(seed)
+
         self.image_root_path = image_root_path
         self.data_csv_path = data_csv_path
         self.datas = []

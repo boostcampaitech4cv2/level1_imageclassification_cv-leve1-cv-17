@@ -15,7 +15,7 @@ from baseline.loss import create_criterion
 import random
 import numpy as np
 
-def seed_everything(self, seed):
+def seed_everything(seed):
     random.seed(seed)
     os.environ['PYTHONHASHSEED'] = str(seed)
     np.random.seed(seed)
