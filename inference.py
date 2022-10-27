@@ -42,7 +42,6 @@ def inference(model, test_loader, device):
 
 if __name__ == '__main__':
     output_df = pd.read_csv(os.path.join(os.getcwd(), 'input', 'data', 'eval', 'info.csv'))
-    
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     
     # print(output_df.ImageID)
@@ -53,7 +52,7 @@ if __name__ == '__main__':
     test_dataloader = DataLoader(test_dataset, batch_size=32, shuffle=False, num_workers=4)
             
     model = EfficientnetB2(num_classes=18).to(device)
-    model.load_state_dict(torch.load(os.path.join(os.getcwd(), 'Models', 'model_2022-10-27 12:49:32.031540.pth')))
+    model.load_state_dict(torch.load(os.path.join(os.getcwd(), 'Models', 'model_2022-10-27 16:05:42.366894.pth')))
     model.eval()
     preds = inference(model, test_dataloader, device)
     

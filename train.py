@@ -8,7 +8,7 @@ import numpy as np
 import pandas as pd
 import torch
 import torch.nn as nn
-from torch.optim import SGD
+from torch.optim import SGD, AdamW
 from torch.optim.lr_scheduler import StepLR
 from torch.utils.data import DataLoader
 from tqdm.auto import tqdm
@@ -21,6 +21,7 @@ from utils.boards import wandb_init
 from Dataset.dataset import MaskTestDataset, MaskTrainDataset
 from Dataset.data_augmentation import train_transform
 from Models.model import EfficientnetB0, EfficientnetB1, EfficientnetB2
+from Models.loss import LabelSmoothingCrossEntropy
 
 def seed_everything(seed):
     torch.manual_seed(seed)
@@ -31,6 +32,11 @@ def seed_everything(seed):
     np.random.seed(seed)
     random.seed(seed)
 
+# stratified k-fold cross validation
+# get the labels from /opt/ml/project/Dataset/data_df.csv
+# def k_fold_cross_validation(model, optimizer, train_loader, val_loader, criterion, scheduler, device, k=5):
+#    seed_everything(41)
+#    
     
 def train(model, optimizer, train_loader, val_loader, criterion, scheduler, device):
     seed_everything(41) # seed = 41 or 444? 
@@ -72,7 +78,8 @@ def train(model, optimizer, train_loader, val_loader, criterion, scheduler, devi
         wandb.log({'train_loss': tr_loss, 'train_score': train_score, 'val_loss': val_loss, 'val_score': val_score})
         
         if scheduler is not None:
-            scheduler.step()
+            # scheduler.step(val_loss) # ReduceLROnPlateau
+            scheduler.step() # CosineAnnealingLR
         
         if best_score < val_score:
             best_model = model
@@ -135,7 +142,7 @@ if __name__ == '__main__':
         "seed": 41,
         "img_size": (220, 224),
         "optimizer": "SGD",
-        "loss": "CrossEntropyLoss",
+        "loss": "LabelSmoothingCrossEntropy",
         "scheduler": "CosineAnnealingLR",
         "model": "EfficientnetB2",
         "split": "0.2"
@@ -145,14 +152,21 @@ if __name__ == '__main__':
     model = EfficientnetB2()
     model.eval()
     
+    class_weight = torch.FloatTensor(1 / data_df['label'].value_counts()).to(device)
     criterion = nn.CrossEntropyLoss().to(device)
+    # criterion = LabelSmoothingCrossEntropy().to(device)
     
-    optimizer = SGD(model.parameters(), lr=0.001, momentum=0.9)
-    scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=10, eta_min=0.00001)
+    # optimizer = SGD(model.parameters(), lr=0.001, momentum=0.9)
+    optimizer = AdamW(model.parameters(), lr=0.001)
+    
+    scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=20, eta_min=0.0001)
+    # scheduler = torch.optim.lr_scheduler.CosineAnnealingWarmRestarts(optimizer, T_max=10, eta_min=0.00001)
+    # scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='min', factor=0.1, patience=3, verbose=True, eps=1e-08)
     
     gc.collect()
     torch.cuda.empty_cache()
     infer_model, infer_score = train(model, optimizer, train_loader, val_loader, criterion, scheduler, device)
     
     print(infer_score)
+    
     
