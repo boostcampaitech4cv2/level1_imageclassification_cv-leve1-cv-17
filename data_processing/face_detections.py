@@ -19,24 +19,24 @@ def face_detect(image, filter):
     # display the output
     # when face is ()... it means no face detected
     if face is (): 
-        print("No face detected")
-        return None
+        # print("No face detected")
+        return None, None, None
     else:
         x, y, w, h = face[0].ravel()
         face_image = image[y:y+h, x:x+w]
         face_image = cv2.cvtColor(face_image, cv2.COLOR_BGR2RGB)
-        return face_image
+        return face_image, x, y
 
 # using cvlib
 def cv_face_detect(image):
     faces, confidences = cv.detect_face(image)
     if len(faces) == 0:
-        print("No face detected")
-        return None
+        # print("No face detected")
+        return None, None, None
     else:
         face_image = image[faces[0][1]:faces[0][3], faces[0][0]:faces[0][2]]
         face_image = cv2.cvtColor(face_image, cv2.COLOR_BGR2RGB)
-        return face_image
+        return face_image, faces[0][0], faces[0][2] # x, y
 
 def gray_scale(img):
     gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
@@ -58,7 +58,7 @@ if __name__=='__main__':
     # load image
     image_path = os.getcwd() 
     print(image_path) # /opt/ml/project/DataProcessing
-    image = cv2.imread(image_path + '/../input/data/train/images/000001_female_Asian_45/mask1.jpg')
+    image = cv2.imread(image_path + '/input/data/train/images/000001_female_Asian_45/mask1.jpg')
     print(image.shape) 
-    face_image = face_detect(image)
+    face_image = face_detect(image, gray_scale)
     # cv2.imshow('image', face_image)
