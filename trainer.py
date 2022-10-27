@@ -11,6 +11,18 @@ from logger.wandb import logging, finish, init_wandb
 import os
 import time
 from utils.model_manage import save
+from baseline.loss import create_criterion
+import random
+import numpy as np
+
+def seed_everything(self, seed):
+    random.seed(seed)
+    os.environ['PYTHONHASHSEED'] = str(seed)
+    np.random.seed(seed)
+    torch.manual_seed(seed)
+    torch.cuda.manual_seed(seed)
+    torch.backends.cudnn.deterministic = True
+    torch.backends.cudnn.benchmark = True
 
 config = EasyDict({
     'image_root_path': "/opt/ml/input/data/train/images",
@@ -19,10 +31,10 @@ config = EasyDict({
     'batch_size': 64,
     'Train_type': ("Train", "Validation", "Test"),
     'split_rate': 0.8,
-    'seed': 444,
+    'seed': 41,
     'learning_rate': 1e-3,
     'image_size': (512, 384),
-    'desc': 'Standard_b1',
+    'desc': 'Normalize_FL_b0',
     'is_soft_label': False
 })
 
@@ -33,10 +45,12 @@ transforms = transforms.Compose([
     transforms.ToPILImage(),
     transforms.Resize(config.image_size),
     transforms.ToTensor(),
-    transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])  
+    transforms.Normalize([0.558, 0.512, 0.478], [0.218, 0.238, 0.252])  
 ])  
 
 if __name__ == "__main__":
+    seed_everything(config.seed)
+
     train_dataset = MaskDataset(
         config.image_root_path,
         config.data_csv_path, 
@@ -62,12 +76,12 @@ if __name__ == "__main__":
     train_dataloader = DataLoader(train_dataset, config.batch_size, shuffle=True, num_workers=4, drop_last=False)
     val_dataloader = DataLoader(val_dataset, config.batch_size, shuffle=True, num_workers=4, drop_last=False)
 
-    model = EfficientNet_b1()
+    model = EfficientNet_b0()
     config['model_name'] = model.name
     init_wandb(config)
 
     optimizer = torch.optim.Adam(model.parameters(), lr=config.learning_rate)
-    criterion = torch.nn.CrossEntropyLoss()
+    criterion = create_criterion('focal')
     scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, factor=0.5, patience=3, min_lr=config.learning_rate*0.1, mode='min')
 
     device = 'cuda' if torch.cuda.is_available() else 'cpu'

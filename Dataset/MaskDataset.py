@@ -1,9 +1,7 @@
 from glob import glob
 import pandas as pd
-import numpy as np
 import torch
 from torch.utils.data import Dataset
-import os
 import random
 import cv2
 import glob
@@ -65,15 +63,6 @@ class MaskDataset(Dataset):
 
             return image, label
 
-    def seed_everything(self, seed):
-        random.seed(seed)
-        os.environ['PYTHONHASHSEED'] = str(seed)
-        np.random.seed(seed)
-        torch.manual_seed(seed)
-        torch.cuda.manual_seed(seed)
-        torch.backends.cudnn.deterministic = True
-        torch.backends.cudnn.benchmark = True
-
     def data_add_label(self, datas : list):
         data_list = []
 
@@ -92,7 +81,7 @@ class MaskDataset(Dataset):
                     label = data[-1]
 
                 if self.is_soft_label:
-                    label = self.label_smoothing(label)
+                    label = self.label_smoothing(torch.tensor(label))
                     
                 data_list.append([image_path, label])
 
