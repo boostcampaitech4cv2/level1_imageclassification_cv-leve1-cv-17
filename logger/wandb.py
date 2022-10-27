@@ -9,10 +9,13 @@ def init_wandb(config : dict):
         "learning_rate": config.learning_rate,
         "seed": config.seed,
         "model_name": config.model_name,
-        "optimizer": 'Adam',
+        "optimizer": config.optimizer,
+        "loss": config.loss,
         "split_rate": config.split_rate,
         "scheduler": "ReduceLROnPlateau",
-        "image_size": config.image_size
+        "image_size": config.image_size,
+        "mean": config.mean,
+        "std": config.std
         }
 
     wandb.init(project="MaskStatusClassification", entity="wowns1484", config=wandb_config, reinit=True)

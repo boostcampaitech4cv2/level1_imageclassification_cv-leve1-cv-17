@@ -16,7 +16,6 @@ class MaskDataset(Dataset):
         split_rate : float, 
         train_type : str, ## Train, Validation, Test
         is_inference : bool,
-        seed : int,
         transform : None,
         is_soft_label : bool
         ) -> None:
@@ -31,7 +30,7 @@ class MaskDataset(Dataset):
 
         if self.is_inference:
             self.data_df = pd.read_csv(self.data_csv_path)['ImageID']
-            self.datas = [[data] for data in self.data_df.values.tolist()]
+            self.datas = [[f'{self.image_root_path}/{data}'] for data in self.data_df.values.tolist()]
         else:
             self.data_list = pd.read_csv(self.data_csv_path).values.tolist()
             random.shuffle(self.data_list)
