@@ -279,7 +279,7 @@ if __name__ == '__main__':
     # Data and model checkpoints directories
     parser.add_argument('--seed', type=int, default=444, help='random seed (default: 444)')
     parser.add_argument('--epochs', type=int, default=20, help='number of epochs to train (default: 20)')
-    parser.add_argument('--dataset', type=str, default='MaskBaseDataset', help='dataset augmentation type (default: MaskBaseDataset)')
+    parser.add_argument('--dataset', type=str, default='MaskSplitByProfileDataset', help='dataset augmentation type (default: MaskSplitByProfileDataset)')
     parser.add_argument('--train_augmentation', type=str, default='MyAugmentation', help='data augmentation type')
     parser.add_argument('--val_augmentation', type=str, default='BaseAugmentation', help='data augmentation type')
     parser.add_argument("--resize", nargs="+", type=list, default=[240, 240], help='resize size for image when training')
