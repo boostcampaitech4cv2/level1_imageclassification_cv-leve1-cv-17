@@ -234,7 +234,6 @@ class MaskBaseDataset(Dataset):
         train_set, val_set = random_split(self, [n_train, n_val])
         return train_set, val_set
 
-
 class MaskSplitByProfileDataset(MaskBaseDataset):
     """
         train / val 나누는 기준을 이미지에 대해서 random 이 아닌

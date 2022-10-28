@@ -34,7 +34,6 @@ def inference_val(checkpoint, model, optimizer, criterion, dataloader, device):
     labels = [i for i in range(18)]
 
     cm = confusion_matrix(val_labels, predicts, labels=labels)
-
     df_cm = pd.DataFrame(cm)
     plt.figure(figsize = (12,7))
     sn.heatmap(df_cm, annot=True)

@@ -7,9 +7,7 @@ from torch.utils.data import DataLoader
 from tqdm import tqdm
 import pandas as pd
 import os
-from Models.EfficientNet_b0 import EfficientNet_b0
-from Models.EfficientNet_b1 import EfficientNet_b1
-from Models.EfficientNet_b2 import EfficientNet_b2
+from Modules.EfficientNet import create_model
 
 if __name__ == "__main__":
     config = EasyDict({
@@ -17,12 +15,13 @@ if __name__ == "__main__":
         'data_csv_path': '/opt/ml/input/data/eval/info.csv',
         'batch_size': 64,
         'Train_type': ("Train", "Validation", "Test"),
-        'seed': 444,
+        'model_name': "EfficientNet_b1",
+        'seed': 41,
         'image_size': (512, 384),
         'desc': 'Normalize_FL_b1',
-        'mean': [0.485, 0.456, 0.406],  ## mask: [0.558, 0.512, 0.478], imageNet: [0.485, 0.456, 0.406]
-        'std': [0.229, 0.224, 0.225],   ## mask: [0.218, 0.238, 0.252], imageNet: [0.229, 0.224, 0.225]
-        'checkpoint_path': '/opt/ml/code/runs/2022-10-27-024241-EfficientNet_b1-Normalize_FL_b1'
+        'mean': [0.548, 0.504, 0.479],  ## mask: [0.558, 0.512, 0.478], imageNet: [0.485, 0.456, 0.406], baseline: [0.548, 0.504, 0.479]
+        'std': [0.237, 0.247, 0.246],   ## mask: [0.218, 0.238, 0.252], imageNet: [0.229, 0.224, 0.225], baseline: [0.237, 0.247, 0.246]
+        'checkpoint_path': '/opt/ml/code/runs/2022-10-27-084832-EfficientNet_b1-Normalize_FL_b1_BM'
     })
 
     transforms = transforms.Compose([
@@ -44,7 +43,7 @@ if __name__ == "__main__":
     )
 
     test_dataloader = DataLoader(test_dataset, config.batch_size, shuffle=False, num_workers=4, drop_last=False)
-    model = EfficientNet_b1()
+    model = create_model(config.model_name)
     optimizer = torch.optim.Adam(model.parameters())
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
