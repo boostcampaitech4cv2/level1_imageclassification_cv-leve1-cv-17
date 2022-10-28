@@ -225,7 +225,7 @@ def train(data_dir, model_dir, args):
                 # logger.add_scalar("Train/mask_accuracy", train_mask_acc, epoch * len(train_loader) + idx)
                 # logger.add_scalar("Train/gender_accuracy", train_gender_acc, epoch * len(train_loader) + idx)
                 # logger.add_scalar("Train/age_accuracy", train_age_acc, epoch * len(train_loader) + idx)
-                wandb.log({'Train Avg Loss': train_loss})
+                wandb.log({'Train Avg Loss': train_loss, 'Train Acc': train_acc, 'Mask Acc': train_mask_acc, 'Gen Acc': train_gender_acc, 'Age Acc': train_age_acc})
                 
                 loss_value = 0
                 matches = 0
@@ -276,12 +276,11 @@ def train(data_dir, model_dir, args):
 
             val_loss = np.sum(val_loss_items) / len(val_loader)
             val_acc = np.sum(val_acc_items) / len(val_set)
-            best_val_loss = min(best_val_loss, val_loss)
-
-            if val_acc > best_val_acc:   
-                print(f"New best model for val acc : {val_acc:4.2%}! saving the best model..")
+            best_val_acc = max(val_acc, best_val_acc)
+            if val_loss < best_val_loss:   
+                print(f"New best model for val loss : {val_acc:4.2%}! saving the best model..")
                 torch.save(model.module.state_dict(), f"{save_dir}/best.pth")
-                best_val_acc = val_acc
+                best_val_loss = val_loss
             torch.save(model.module.state_dict(), f"{save_dir}/last.pth")
           
             print(f"[Val] acc : {val_acc:4.2%} || loss: {val_loss:4.2} || best vac : {best_val_acc:4.2%} || best loss: {best_val_loss:4.4}")
@@ -300,7 +299,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
 
     # Data and model checkpoints directories
-    parser.add_argument('--seed', type=int, default=444, help='random seed (default: 444)')
+    parser.add_argument('--seed', type=int, default=42, help='random seed (default: 444)')
     parser.add_argument('--epochs', type=int, default=20, help='number of epochs to train (default: 20)')
     parser.add_argument('--dataset', type=str, default='MaskMultiLabelDataset', help='dataset augmentation type (default: MaskMultiLabelDataset)')
     parser.add_argument('--train_augmentation', type=str, default='MyAugmentation', help='data augmentation type')
