@@ -86,17 +86,17 @@ def increment_path(path, exist_ok=False):
 
 
 def train(data_dir, model_dir, args):
-    # wandb.login
+    wandb.login
 
-    # wandb.init(project = "mask_classification", entity = "cv17",
-    #             config = {"batch_size": args.batch_size,
-    #                     "learning_rate" : args.lr,
-    #                     "epochs"    : args.epochs,
-    #                     "model_name"  : args.model,
-    #                     "criterion_name" : args.criterion,
-    #                     "optimizer" : args.optimizer,
-    #                     "seed"  : args.seed
-    #             })
+    wandb.init(project = "mask_classification", entity = "cv17",
+                config = {"batch_size": args.batch_size,
+                        "learning_rate" : args.lr,
+                        "epochs"    : args.epochs,
+                        "model_name"  : args.model,
+                        "criterion_name" : args.criterion,
+                        "optimizer" : args.optimizer,
+                        "seed"  : args.seed
+                })
 
 
     seed_everything(args.seed)
@@ -153,8 +153,8 @@ def train(data_dir, model_dir, args):
 
     # -- loss & metric
     criterion = create_criterion(args.criterion)  # cross_entropy
-    criterion2 = create_criterion(args.criterion2) # focal
-    criterion3 = create_criterion(args.criterion3) # label smoothing
+    criterion2 = create_criterion(args.criterion2) # label_smoothing
+    criterion3 = create_criterion(args.criterion3) # focal
     opt_module = getattr(import_module("torch.optim"), args.optimizer)  # default: AdamW
     optimizer = opt_module(
         filter(lambda p: p.requires_grad, model.parameters()),
@@ -198,8 +198,8 @@ def train(data_dir, model_dir, args):
             preds = torch.stack((preds_mask, preds_gender, preds_age), dim=1)
 
             mask_loss = criterion(mask_outs, mask_labels) # crossentropy , 기존의 loss
-            gender_loss = criterion3(gender_outs, gender_labels) # label_smoothing
-            age_loss = criterion2(age_outs, age_labels) # focal
+            gender_loss = criterion2(gender_outs, gender_labels) # label_smoothing
+            age_loss = criterion3(age_outs, age_labels) # focal
 
             loss = mask_loss + gender_loss + 1.5 * age_loss
             loss.backward()
@@ -225,7 +225,7 @@ def train(data_dir, model_dir, args):
                 # logger.add_scalar("Train/mask_accuracy", train_mask_acc, epoch * len(train_loader) + idx)
                 # logger.add_scalar("Train/gender_accuracy", train_gender_acc, epoch * len(train_loader) + idx)
                 # logger.add_scalar("Train/age_accuracy", train_age_acc, epoch * len(train_loader) + idx)
-                # wandb.log({'Train Avg Loss': train_loss, 'Train F1 Loss': train_f1_loss})
+                wandb.log({'Train Avg Loss': train_loss})
                 
                 loss_value = 0
                 matches = 0
@@ -257,8 +257,8 @@ def train(data_dir, model_dir, args):
                 preds = torch.stack((preds_mask, preds_gender, preds_age), dim=1)
 
                 mask_loss = criterion(mask_outs, mask_labels) # crossentropy , 기존의 loss
-                gender_loss = criterion3(gender_outs, gender_labels) # label_smoothing
-                age_loss = criterion2(age_outs, age_labels) # focal
+                gender_loss = criterion2(gender_outs, gender_labels) # label_smoothing
+                age_loss = criterion3(age_outs, age_labels) # focal
 
                 loss = mask_loss + gender_loss + 1.5 * age_loss
                 loss_item = loss.item()
@@ -289,13 +289,12 @@ def train(data_dir, model_dir, args):
             logger.add_scalar("Val/accuracy", val_acc, epoch)
             # logger.add_figure("results", figure, epoch)
             print()
-    #         wandb.log({
-    #                 "Validation Avg Loss": val_loss,
-    #                 "Validation F1 Loss" : val_f1_loss,
-    #                 "Validation Accuracy" : val_acc
-    #                 })
+            wandb.log({
+                    "Validation Avg Loss": val_loss,
+                    "Validation Accuracy" : val_acc
+                    })
 
-    # wandb.finish()
+    wandb.finish()
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
@@ -314,8 +313,8 @@ if __name__ == '__main__':
     parser.add_argument('--lr', type=float, default=1e-3, help='learning rate (default: 1e-3)')
     parser.add_argument('--val_ratio', type=float, default=0.2, help='ratio for validaton (default: 0.2)')
     parser.add_argument('--criterion', type=str, default='cross_entropy', help='criterion type (default: cross_entropy)')
-    parser.add_argument('--criterion2', type=str, default='focal', help='criterion type (default: f1)')
-    parser.add_argument('--criterion3', type=str, default='label_smoothing', help='criterion type (default: label_smoothing)')
+    parser.add_argument('--criterion2', type=str, default='label_smoothing', help='criterion type (default: label_smoothing)')
+    parser.add_argument('--criterion3', type=str, default='focal', help='criterion type (default: focal)')
     parser.add_argument('--scheduler', type=str, default='StepLR')
     parser.add_argument('--lr_decay_step', type=int, default=5, help='learning rate scheduler deacy step (default: 20)')
     parser.add_argument('--log_interval', type=int, default=20, help='how many batches to wait before logging training status')
