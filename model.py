@@ -34,26 +34,97 @@ class BaseModel(nn.Module):
 
 
 # Custom Model Template
+class EfficientNet_B0(nn.Module):
+    def __init__(self, num_classes):
+        super().__init__()
+
+        self.backbone = models.efficientnet_b0(weights=models.EfficientNet_B1_Weights.DEFAULT)
+        self.classifier = nn.Linear(1000, num_classes)
+        
+        self.name = "EfficientNet_B0"
+
+        self.init_params()
+        
+    def forward(self, x):
+        x = self.backbone(x)
+        x = F.relu(x)
+        x = self.classifier(x)
+        return x
+
+    def init_params(self):
+        nn.init.kaiming_uniform_(self.classifier.weight)
+        nn.init.zeros_(self.classifier.bias)
+
 class EfficientNet_B1(nn.Module):
     def __init__(self, num_classes):
         super().__init__()
 
-        """
-        1. 위와 같이 생성자의 parameter 에 num_claases 를 포함해주세요.
-        2. 나만의 모델 아키텍쳐를 디자인 해봅니다.
-        3. 모델의 output_dimension 은 num_classes 로 설정해주세요.
-        """
         self.backbone = models.efficientnet_b1(weights=models.EfficientNet_B1_Weights.DEFAULT)
         self.classifier = nn.Linear(1000, num_classes)
 
-        self.name = "EfficientNet_b1"
+        self.name = "EfficientNet_B1"
 
         self.init_params()
+
     def forward(self, x):
-        """
-        1. 위에서 정의한 모델 아키텍쳐를 forward propagation 을 진행해주세요
-        2. 결과로 나온 output 을 return 해주세요
-        """
+        x = self.backbone(x)
+        x = F.relu(x)
+        x = self.classifier(x)
+        return x
+
+    def init_params(self):
+        nn.init.kaiming_uniform_(self.classifier.weight)
+        nn.init.zeros_(self.classifier.bias)
+
+class ResNet18(nn.Module):
+    def __init__(self, num_classes):
+        super().__init__()
+        self.backbone = models.resnet18(weights=models.ResNet18_Weights.DEFAULT)
+        self.classifier = nn.Linear(512, num_classes)
+
+        self.name = "ResNet18"
+
+        self.init_params()
+
+    def forward(self, x):
+        x = self.backbone(x)
+        x = self.classifier(x)
+        return x
+
+    def init_params(self):
+        nn.init.kaiming_uniform_(self.classifier.weight)
+        nn.init.zeros_(self.classifier.bias)
+
+class ResNet34(nn.Module):
+    def __init__(self, num_classes):
+        super().__init__()
+        self.backbone = models.resnet34(weights=models.ResNet34_Weights.DEFAULT)
+        self.classifier = nn.Linear(512, num_classes)
+
+        self.name = "ResNet34"
+
+        self.init_params()
+
+    def forward(self, x):
+        x = self.backbone(x)
+        x = self.classifier(x)
+        return x
+
+    def init_params(self):
+        nn.init.kaiming_uniform_(self.classifier.weight)
+        nn.init.zeros_(self.classifier.bias)
+
+class ResNet50(nn.Module):
+    def __init__(self, num_classes):
+        super().__init__()
+        self.backbone = models.resnet50(weights=models.ResNet50_Weights.DEFAULT)
+        self.classifier = nn.Linear(512, num_classes)
+
+        self.name = "ResNet50"
+
+        self.init_params()
+
+    def forward(self, x):
         x = self.backbone(x)
         x = self.classifier(x)
         return x

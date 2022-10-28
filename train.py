@@ -86,17 +86,17 @@ def increment_path(path, exist_ok=False):
 
 
 def train(data_dir, model_dir, args):
-    wandb.login
+    # wandb.login
 
-    wandb.init(project = "mask_classification", entity = "cv17",
-                config = {"batch_size": args.batch_size,
-                        "learning_rate" : args.lr,
-                        "epochs"    : args.epochs,
-                        "model_name"  : args.model,
-                        "criterion_name" : args.criterion,
-                        "optimizer" : args.optimizer,
-                        "seed"  : args.seed
-                })
+    # wandb.init(project = "mask_classification", entity = "cv17",
+    #             config = {"batch_size": args.batch_size,
+    #                     "learning_rate" : args.lr,
+    #                     "epochs"    : args.epochs,
+    #                     "model_name"  : args.model,
+    #                     "criterion_name" : args.criterion,
+    #                     "optimizer" : args.optimizer,
+    #                     "seed"  : args.seed
+    #             })
 
 
     seed_everything(args.seed)
@@ -115,22 +115,15 @@ def train(data_dir, model_dir, args):
     num_classes = dataset.num_classes  # 18
 
     # -- augmentation
-    train_transform_module = getattr(import_module("dataset"), args.train_augmentation)  # CustomAugmentation
-    train_transform = transform_module(
+    transform_module = getattr(import_module("dataset"), args.train_augmentation)  # CustomAugmentation
+    transform = transform_module(
         resize=args.resize,
         mean=dataset.mean,
         std=dataset.std,
     )
-    val_transform_module = getattr(import_module("dataset"), args.val_augmentation) # BaseAugmentation
-    val_transform = transform_module(
-        resize=args.resize,
-        mean=dataset.mean,
-        std=dataset.std,
-    )
+    
+    dataset.set_transform(transform)
     train_set, val_set = dataset.split_dataset()
-
-    train_set.set_transform(train_transform)
-    val_set.set_tranform(val_transform)
 
     # -- data_loader
     train_loader = DataLoader(
@@ -161,7 +154,7 @@ def train(data_dir, model_dir, args):
     # -- loss & metric
     criterion = create_criterion(args.criterion)  # default: cross_entropy
     criterion2 = create_criterion(args.criterion2) # f1 loss
-    opt_module = getattr(import_module("torch.optim"), args.optimizer)  # default: SGD
+    opt_module = getattr(import_module("torch.optim"), args.optimizer)  # default: AdamW
     optimizer = opt_module(
         filter(lambda p: p.requires_grad, model.parameters()),
         lr=args.lr,
@@ -216,7 +209,7 @@ def train(data_dir, model_dir, args):
                 logger.add_scalar("Train/f1_loss", train_f1_loss, epoch * len(train_loader) + idx)
                 logger.add_scalar("Train/accuracy", train_acc, epoch * len(train_loader) + idx)
                 
-                wandb.log({'Train Avg Loss': train_loss, 'Train F1 Loss': train_f1_loss})
+                # wandb.log({'Train Avg Loss': train_loss, 'Train F1 Loss': train_f1_loss})
                 
                 loss_value, f1_loss_value = 0, 0
                 matches = 0
@@ -272,13 +265,13 @@ def train(data_dir, model_dir, args):
             logger.add_scalar("Val/f1 loss", val_f1_loss, epoch)
             logger.add_figure("results", figure, epoch)
             print()
-            wandb.log({
-                    "Validation Avg Loss": val_loss,
-                    "Validation F1 Loss" : val_f1_loss,
-                    "Validation Accuracy" : val_acc
-                    })
+    #         wandb.log({
+    #                 "Validation Avg Loss": val_loss,
+    #                 "Validation F1 Loss" : val_f1_loss,
+    #                 "Validation Accuracy" : val_acc
+    #                 })
 
-    wandb.finish()
+    # wandb.finish()
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
@@ -293,7 +286,7 @@ if __name__ == '__main__':
     parser.add_argument('--batch_size', type=int, default=64, help='input batch size for training (default: 64)')
     parser.add_argument('--valid_batch_size', type=int, default=1000, help='input batch size for validing (default: 1000)')
     parser.add_argument('--model', type=str, default='EfficientNet_B1', help='model type (default: EfficientNet_B1)')
-    parser.add_argument('--optimizer', type=str, default='Adam', help='optimizer type (default: SGD)')
+    parser.add_argument('--optimizer', type=str, default='AdamW', help='optimizer type (default: AdamW)')
     parser.add_argument('--lr', type=float, default=1e-3, help='learning rate (default: 1e-3)')
     parser.add_argument('--val_ratio', type=float, default=0.2, help='ratio for validaton (default: 0.2)')
     parser.add_argument('--criterion', type=str, default='label_smoothing', help='criterion type (default: cross_entropy)')
