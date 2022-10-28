@@ -182,12 +182,12 @@ def train(data_dir, model_dir, args):
             labels = labels.to(device)
 
             optimizer.zero_grad()
-
+            
             outs = model(inputs)
             preds = torch.argmax(outs, dim=-1)
+
             loss = criterion(outs, labels)
             f1_loss = criterion2(outs, labels)
-
 
             loss.backward()
             optimizer.step()

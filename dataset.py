@@ -318,7 +318,6 @@ class MaskMultiLabelDataset(MaskSplitByProfileDataset):
         gender_label = self.get_gender_label(index)
         age_label = self.get_age_label(index)
         # multi_class_label = self.encode_multi_class(mask_label, gender_label, age_label)
-
         image_transform = self.transform(image)
         return image_transform, (mask_label, gender_label, age_label)
 
