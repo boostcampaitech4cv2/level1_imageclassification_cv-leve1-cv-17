@@ -15,7 +15,7 @@ from sklearn.model_selection import train_test_split
 from enum import Enum
 
 from Dataset.data_augmentation import train_transform, test_transform
-
+# from data_augmentation import train_transform, test_transform
 # from face_detections import cv_face_detect, face_detect, gray_scale
     
 num2class = ['incorrect_mask', 'mask1', 'mask2', 'mask3',
@@ -135,6 +135,6 @@ if __name__ == '__main__':
     # print(list(iter(dataloader))[0][0].shape)
     print(dataset.__getitem__(0))
     
-    train_loader, val_loader = dataset.split_dataset() # train_loader, val_loader = Subset, Subset -> model에서 동작될려나? -> 동작됨
-    print(len(train_loader), len(val_loader))
-    print(next(iter(train_loader))[0].shape)
+    # train_loader, val_loader = dataset.split_dataset() # train_loader, val_loader = Subset, Subset -> model에서 동작될려나? -> 동작됨
+    # print(len(train_loader), len(val_loader))
+    # print(next(iter(train_loader))[0].shape)

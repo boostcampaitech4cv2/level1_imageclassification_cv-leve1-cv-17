@@ -142,7 +142,7 @@ if __name__ == '__main__':
         "seed": 41,
         "img_size": (220, 224),
         "optimizer": "AdamW",
-        "loss": "FocalLoss",
+        "loss": "FocalLoss - gamma=2, with class_weight",
         "scheduler": "CosineAnnealingLR",
         "model": "EfficientnetB2",
         "split": "0.2"
@@ -155,7 +155,7 @@ if __name__ == '__main__':
     class_weight = torch.FloatTensor(1 / data_df['label'].value_counts()).to(device)
     # criterion = nn.CrossEntropyLoss().to(device)
     # criterion = LabelSmoothingCrossEntropy().to(device)
-    criterion = FocalLoss().to(device)
+    criterion = FocalLoss(alpha=None, gamma=2).to(device)
     
     # optimizer = SGD(model.parameters(), lr=0.001, momentum=0.9)
     optimizer = AdamW(model.parameters(), lr=0.001)
