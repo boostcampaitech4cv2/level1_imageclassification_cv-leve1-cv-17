@@ -340,3 +340,33 @@ class TestDataset(Dataset):
 
     def __len__(self):
         return len(self.img_paths)
+
+def getDataloader(dataset, train_idx, valid_idx, batch_size, num_workers, use_cuda):
+    # 인자로 전달받은 dataset에서 train_idx에 해당하는 Subset 추출
+    train_set = torch.utils.data.Subset(dataset,
+                                        indices=train_idx)
+    # 인자로 전달받은 dataset에서 valid_idx에 해당하는 Subset 추출
+    val_set   = torch.utils.data.Subset(dataset,
+                                        indices=valid_idx)
+    
+    # 추출된 Train Subset으로 DataLoader 생성
+    train_loader = torch.utils.data.DataLoader(
+        train_set,
+        batch_size=batch_size,
+        num_workers=num_workers,
+        drop_last=True,
+        shuffle=True,
+        pin_memory=use_cuda,
+    )
+    # 추출된 Valid Subset으로 DataLoader 생성
+    val_loader = torch.utils.data.DataLoader(
+        val_set,
+        batch_size=batch_size,
+        num_workers=num_workers,
+        drop_last=True,
+        shuffle=False,
+        pin_memory=use_cuda
+    )
+    
+    # 생성한 DataLoader 반환
+    return train_loader, val_loader, len(val_set)
