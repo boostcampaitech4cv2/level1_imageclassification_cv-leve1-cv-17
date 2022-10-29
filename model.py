@@ -38,7 +38,7 @@ class EfficientNet_B0(nn.Module):
     def __init__(self, num_classes):
         super().__init__()
 
-        self.backbone = models.efficientnet_b0(weights=models.EfficientNet_B1_Weights.DEFAULT)
+        self.backbone = models.efficientnet_b0(weights=models.EfficientNet_B0_Weights.DEFAULT)
         self.classifier = nn.Linear(1000, num_classes)
         
         self.name = "EfficientNet_B0"
@@ -76,11 +76,32 @@ class EfficientNet_B1(nn.Module):
         nn.init.kaiming_uniform_(self.classifier.weight)
         nn.init.zeros_(self.classifier.bias)
 
+class EfficientNet_B2(nn.Module):
+    def __init__(self, num_classes):
+        super().__init__()
+
+        self.backbone = models.efficientnet_b2(weights=models.EfficientNet_B2_Weights.DEFAULT)
+        self.classifier = nn.Linear(1000, num_classes)
+
+        self.name = "EfficientNet_B2"
+
+        self.init_params()
+
+    def forward(self, x):
+        x = self.backbone(x)
+        x = F.relu(x)
+        x = self.classifier(x)
+        return x
+
+    def init_params(self):
+        nn.init.kaiming_uniform_(self.classifier.weight)
+        nn.init.zeros_(self.classifier.bias)
+
 class ResNet18(nn.Module):
     def __init__(self, num_classes):
         super().__init__()
         self.backbone = models.resnet18(weights=models.ResNet18_Weights.DEFAULT)
-        self.classifier = nn.Linear(512, num_classes)
+        self.classifier = nn.Linear(1000, num_classes)
 
         self.name = "ResNet18"
 
@@ -88,6 +109,7 @@ class ResNet18(nn.Module):
 
     def forward(self, x):
         x = self.backbone(x)
+        x = F.relu(x)
         x = self.classifier(x)
         return x
 
@@ -99,7 +121,7 @@ class ResNet34(nn.Module):
     def __init__(self, num_classes):
         super().__init__()
         self.backbone = models.resnet34(weights=models.ResNet34_Weights.DEFAULT)
-        self.classifier = nn.Linear(512, num_classes)
+        self.classifier = nn.Linear(1000, num_classes)
 
         self.name = "ResNet34"
 
@@ -107,6 +129,7 @@ class ResNet34(nn.Module):
 
     def forward(self, x):
         x = self.backbone(x)
+        x = F.relu(x)
         x = self.classifier(x)
         return x
 
@@ -118,7 +141,7 @@ class ResNet50(nn.Module):
     def __init__(self, num_classes):
         super().__init__()
         self.backbone = models.resnet50(weights=models.ResNet50_Weights.DEFAULT)
-        self.classifier = nn.Linear(512, num_classes)
+        self.classifier = nn.Linear(1000, num_classes)
 
         self.name = "ResNet50"
 
@@ -126,6 +149,7 @@ class ResNet50(nn.Module):
 
     def forward(self, x):
         x = self.backbone(x)
+        x = F.relu(x)
         x = self.classifier(x)
         return x
 
