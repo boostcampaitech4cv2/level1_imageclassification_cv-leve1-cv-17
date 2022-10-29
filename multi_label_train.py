@@ -272,7 +272,7 @@ def train(data_dir, model_dir, args):
                 #     figure = grid_image(
                 #         inputs_np, labels, preds, n=16, shuffle=args.dataset != "MaskMultiLabelDataset"
                 #     )
-
+            
             val_loss = np.sum(val_loss_items) / len(val_loader)
             val_acc = np.sum(val_acc_items) / len(val_set)
             best_val_acc = max(val_acc, best_val_acc)
