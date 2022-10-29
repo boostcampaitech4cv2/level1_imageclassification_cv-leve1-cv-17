@@ -58,14 +58,14 @@ def data_making(label_df, data_feeding):
     
     return data_feeding
     
+
 class MaskTrainDataset(Dataset):
-    
     def __init__(self, data_df, transform=None, val_ratio=0.2):
         super(Dataset, self).__init__()
         self.df = data_df
         self.img_dir = self.df['image_path']
-        self.transform = transform
         self.img_label = self.df['label']
+        self.transform = transform
         self.val_ratio = val_ratio
     
     
@@ -82,6 +82,9 @@ class MaskTrainDataset(Dataset):
         if self.img_label is not None:
             label = self.img_label[index]
             return img, label
+        else:
+            label = None
+            return img, label
     
     def __len__(self):
         return len(self.img_dir)
@@ -91,7 +94,8 @@ class MaskTrainDataset(Dataset):
         n_train = len(self) - n_val
         train_set, val_set = random_split(self, [n_train, n_val])
         return train_set, val_set
-        
+
+      
 
 class MaskTestDataset(Dataset):
     def __init__(self, data_df, transform=None):
@@ -133,8 +137,24 @@ if __name__ == '__main__':
     dataset = MaskTrainDataset(data_df, transform=train_transform)
     dataloader = DataLoader(dataset, batch_size=16, shuffle=True, num_workers=4)
     # print(list(iter(dataloader))[0][0].shape)
-    print(dataset.__getitem__(0))
+    # print(dataset.__getitem__(0))
     
     # train_loader, val_loader = dataset.split_dataset() # train_loader, val_loader = Subset, Subset -> model에서 동작될려나? -> 동작됨
     # print(len(train_loader), len(val_loader))
     # print(next(iter(train_loader))[0].shape)
+    
+    
+    test_df = pd.read_csv(os.path.join(os.getcwd(), "input", "data", "eval", "info.csv"))
+    
+    if 'unlabel_df.csv' not in os.listdir(os.path.join(os.getcwd(), 'Dataset')) :
+        test_df = test_df.rename(columns={'ImageID': 'image_path', 'ans': 'label'})
+        test_df['image_path'] = test_df['image_path'].apply(lambda x: os.path.join(os.getcwd(), 'input', 'data', 'eval', 'images', x))
+        test_df['label'] = np.NAN
+        # 0001b62fb1057a1182db2c839de232dbef0d1e90.jpg -> /opt/ml/project/input/data/eval/images/0001b62fb1057a1182db2c839de232dbef0d1e90.jpg
+        print(test_df['image_path'][0])
+        test_df.to_csv(os.path.join(os.getcwd(), "Dataset", "unlabel_data_df.csv"), index=False)
+    
+    testset = MaskTrainDataset(test_df, transform=test_transform)
+    test_loader = DataLoader(testset, batch_size=16, shuffle=False, num_workers=4)
+    # print(testset.__getitem__(0))
+    print(testset.img_label[0])

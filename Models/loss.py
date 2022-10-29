@@ -19,6 +19,7 @@ class LabelSmoothingCrossEntropy(nn.Module):
         smooth_loss = -logprobs.mean(dim=-1)
         loss = confidence * nll_loss + smoothing * smooth_loss
         return loss.mean()
+
     
 
 # try this: https://github.com/AdeelH/pytorch-multi-class-focal-loss/blob/master/focal_loss.py
@@ -80,8 +81,7 @@ class FocalLoss(nn.Module):
             
         return loss
         
-        
-        
+              
         
         
 class FocalCosineLoss(nn.Module):
@@ -100,7 +100,7 @@ class FocalCosineLoss(nn.Module):
         return cos_loss + F_loss.mean()
     
 
-# reference: github.com/TreB1eN/InsightFace_Pytorch/blob/master/model.py
+# reference: https://github.com/TreB1eN/InsightFace_Pytorch/blob/master/model.py
 class Arcface(nn.Module):
     # implementation of additive margin softmax loss in https://arxiv.org/abs/1801.05599  
     def __init__(self, embedding_size=512, classnum=18, s=64, m=0.5, easy_margin=False):
@@ -116,10 +116,16 @@ class Arcface(nn.Module):
         self.mm = self.sin_m * m
         self.threshold = math.cos(math.pi - m)
         
+    def l2_norm(input,axis=1):
+        norm = torch.norm(input,2,axis,True)
+        output = torch.div(input, norm)
+        
+        return output
+        
     def forward(self, embeddings, label):
         # weights norm
         nB = len(embeddings)
-        kernel_norm = l2_norm(self.kernel, axis = 0)
+        kernel_norm = self.l2_norm(self.kernel, axis = 0)
         cos_theta = cos_theta.clamp(-1, 1)
         cos_theta_2 = torch.pow(cos_theta, 2)
         sin_theta_2 = 1 - cos_theta_2
@@ -139,6 +145,23 @@ class Arcface(nn.Module):
         output *= self.s
         
         return output
+
+
+class LabelSmoothingLoss(nn.Module):
+    def __init__(self, classes=3, smoothing=0.0, dim=-1):
+        super(LabelSmoothingLoss, self).__init__()
+        self.confidence = 1.0 - smoothing
+        self.smoothing = smoothing
+        self.cls = classes
+        self.dim = dim
+
+    def forward(self, pred, target):
+        pred = pred.log_softmax(dim=self.dim)
+        with torch.no_grad():
+            true_dist = torch.zeros_like(pred)
+            true_dist.fill_(self.smoothing / (self.cls - 1))
+            true_dist.scatter_(1, target.data.unsqueeze(1), self.confidence)
+        return torch.mean(torch.sum(-true_dist * pred, dim=self.dim))
     
 
 if __name__ == '__main__':

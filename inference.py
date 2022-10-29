@@ -52,7 +52,7 @@ if __name__ == '__main__':
     test_dataloader = DataLoader(test_dataset, batch_size=32, shuffle=False, num_workers=4)
             
     model = EfficientnetB2(num_classes=18).to(device)
-    model.load_state_dict(torch.load(os.path.join(os.getcwd(), 'Models', 'model_2022-10-28 02:38:18.352962.pth')))
+    model.load_state_dict(torch.load(os.path.join(os.getcwd(), 'Models', 'model_2022-10-28 03:22:54.503305.pth')))
     model.eval()
     preds = inference(model, test_dataloader, device)
     
