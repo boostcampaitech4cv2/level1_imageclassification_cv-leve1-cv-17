@@ -23,6 +23,7 @@ from Dataset.dataset import MaskTestDataset, MaskTrainDataset
 from Dataset.data_augmentation import train_transform
 from Models.model import EfficientnetB0, EfficientnetB1, EfficientnetB2
 from Models.loss import LabelSmoothingCrossEntropy, FocalLoss
+from Models.metric import EarlyStopping
 
 def seed_everything(seed):
     torch.manual_seed(seed)
@@ -58,14 +59,17 @@ def semisup_train(model,
     alpha = 0
     alpha_t = 1e-4
     T1 = 10
-    T2 = 20
+    T2 = 30
     
-    EPOCHS = 40
+    EPOCHS = 100
     step = 100
+    
+    seed_everything(41)
     model.to(device)
     
     best_score = 0
     best_model = None
+    early_stopping = EarlyStopping(patience=5, verbose=True, path = f'{os.getcwd()}/Models/saved_model/model_{model.name}_{best_score}_{datetime.today()}.pth')
     
     for epoch in range(EPOCHS):
         
@@ -97,14 +101,11 @@ def semisup_train(model,
             
             train_loss.append(loss.item())
             
-            
-            
         if (epoch > T1) and (epoch < T2):
-            alpha + alpha_t ( (epoch - T1) / (T2 - T1) )
+            alpha = alpha_t * ( (epoch - T1) / (T2 - T1) )
         
         elif epoch >= T2:
             alpha = alpha_t
-        
            
         if scheduler is not None:
             scheduler.step()
@@ -114,7 +115,7 @@ def semisup_train(model,
             
         val_loss, val_score = validation(model, criterion, label_val_loader, device)
             
-        print(f'Epoch: {epoch+1}/{EPOCHS} | Step: {step} | Train Loss: {tr_loss_mean:.4f} | Tra {train_score:.4f} | Val Loss: {val_loss:.4f} | Val F1: {val_score:.4f}')
+        print(f'Epoch: {epoch+1}/{EPOCHS} | Step: {step} | Train Loss: {tr_loss_mean:.4f} | Train_score {train_score:.4f} | Val Loss: {val_loss:.4f} | Val F1: {val_score:.4f}')
         wandb.log({'train_loss': tr_loss_mean, 'train_score': train_score, 'val_loss': val_loss, 'val_score': val_score})
              
         if best_score < val_score:
@@ -123,6 +124,12 @@ def semisup_train(model,
 
         gc.collect()
         torch.cuda.empty_cache()
+        
+        early_stopping(val_loss, model)
+        
+        if early_stopping.early_stop:
+            print("early stopping")
+            break
     
     torch.save(best_model.state_dict(), f'{os.getcwd()}/Models/saved_model/{model.__class__.__name__}_best_{datetime.today()}.pth')
             
@@ -138,6 +145,9 @@ def train(model, optimizer, train_loader, val_loader, criterion, scheduler, devi
     
     best_score = 0
     best_model = None
+    EPOCHS = 100
+    
+    early_stopping = EarlyStopping(patience=5, verbose=True, path = f'{os.getcwd()}/Models/saved_model/model_{model.name}_{best_score}_{datetime.today()}.pth')
     
     for epoch in range(1, 21):
         model.train()
@@ -176,10 +186,16 @@ def train(model, optimizer, train_loader, val_loader, criterion, scheduler, devi
         if best_score < val_score:
             best_model = model
             best_score = val_score
-      
+        
+        early_stopping(val_loss, model)
+        
+        if early_stopping.early_stop:
+            print("early stopping")
+            break
+        
         gc.collect()
     
-    torch.save(best_model.state_dict(), f'{os.getcwd()}/Models/saved_model/model_{best_score}_{datetime.today()}.pth')
+    torch.save(best_model.state_dict(), f'{os.getcwd()}/Models/saved_model/model_{model.name}_{best_score}_{datetime.today()}.pth')
     
     return best_model, best_score
 
@@ -225,30 +241,31 @@ if __name__ == '__main__':
     label_dataset = MaskTrainDataset(data_df, train_transform)   
     label_train_dataset, label_val_dataset = label_dataset.split_dataset()
     
-    label_train_loader = DataLoader(label_train_dataset, batch_size=64, shuffle=True, num_workers=0)
-    label_val_loader = DataLoader(label_val_dataset, batch_size=64, shuffle=False, num_workers=0)
+    label_train_loader = DataLoader(label_train_dataset, batch_size=32, shuffle=True, num_workers=4)
+    label_val_loader = DataLoader(label_val_dataset, batch_size=32, shuffle=False, num_workers=4)
     
     
     ## dataset for unlabeled data 
     unlabel_train_dataset = MaskTrainDataset(unlabel_data_df, train_transform)
-    unlabel_train_loader = DataLoader(unlabel_train_dataset, batch_size=64, shuffle=True, num_workers=0)
+    unlabel_train_loader = DataLoader(unlabel_train_dataset, batch_size=32, shuffle=True, num_workers=0)
     
     config = {
         "learning_rate": 0.001,
         "epochs": 20,
-        "batch_size": 64,
+        "batch_size": 32,
         "seed": 41,
         "img_size": (220, 224),
         "optimizer": "AdamW",
         "loss": "FocalLoss - gamma=2, with class_weight",
         "scheduler": "CosineAnnealingLR",
-        "model": "EfficientnetB2",
+        "model": "EfficientnetB1",
         "split": "0.2"
     }
     wandb_init(config)
     
     model = EfficientnetB2()
     
+    # print(model.name)
 
     criterion = FocalLoss(alpha=None, gamma=2).to(device)    
     optimizer = AdamW(model.parameters(), lr=0.001)
@@ -260,8 +277,8 @@ if __name__ == '__main__':
     
     gc.collect()
     torch.cuda.empty_cache()
-    # infer_model, infer_score = train(model, optimizer, label_train_loader, label_val_loader, criterion, scheduler, device)
-    pseudo_model, pseudo_score = semisup_train(model, label_train_loader, unlabel_train_loader, label_val_loader, criterion, optimizer, device, scheduler)
-    # print(infer_score)
-    print(pseudo_score) 
+    infer_model, infer_score = train(model, optimizer, label_train_loader, label_val_loader, criterion, scheduler, device)
+    # pseudo_model, pseudo_score = semisup_train(model, label_train_loader, unlabel_train_loader, label_val_loader, criterion, optimizer, device, scheduler)
+    print(infer_score)
+    # print(pseudo_score) 
    

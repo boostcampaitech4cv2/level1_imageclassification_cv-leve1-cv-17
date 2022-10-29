@@ -137,7 +137,8 @@ if __name__ == '__main__':
     dataset = MaskTrainDataset(data_df, transform=train_transform)
     dataloader = DataLoader(dataset, batch_size=16, shuffle=True, num_workers=4)
     # print(list(iter(dataloader))[0][0].shape)
-    # print(dataset.__getitem__(0))
+    print(dataset.img_dir[0])
+    print(dataset.img_label[0])
     
     # train_loader, val_loader = dataset.split_dataset() # train_loader, val_loader = Subset, Subset -> model에서 동작될려나? -> 동작됨
     # print(len(train_loader), len(val_loader))

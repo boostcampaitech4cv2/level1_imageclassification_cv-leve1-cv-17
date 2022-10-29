@@ -15,8 +15,6 @@ from Dataset.data_augmentation import test_transform
 from Models.model import EfficientnetB0, EfficientnetB1, EfficientnetB2
 
 def load_model(saved_model, num_classes, device):
-    # 이것도 가능? -> 이것이 더 좋은 방법일 수도 있음
-    # 어.......... 그러니? 믿고 써야지
     model = torch.load_state_dict(saved_model)
     model.to(device)
     model.eval()
@@ -51,8 +49,8 @@ if __name__ == '__main__':
     test_dataset = MaskTestDataset(output_df, test_transform)
     test_dataloader = DataLoader(test_dataset, batch_size=32, shuffle=False, num_workers=4)
             
-    model = EfficientnetB2(num_classes=18).to(device)
-    model.load_state_dict(torch.load(os.path.join(os.getcwd(), 'Models', 'model_2022-10-28 03:22:54.503305.pth')))
+    model = EfficientnetB1(num_classes=18).to(device)
+    model.load_state_dict(torch.load(os.path.join(os.getcwd(), 'Models', 'saved_model', 'model_Efficientnet-b1_0.9896630180733852_2022-10-29 15:25:46.292254.pth')))
     model.eval()
     preds = inference(model, test_dataloader, device)
     
