@@ -22,6 +22,7 @@ class EfficientnetB0(nn.Module):
         nn.init.kaiming_uniform_(self.fc.weight)
         nn.init.zeros_(self.fc.bias)
     
+    
 class EfficientnetB1(nn.Module):
     def __init__(self, num_classes=18):
         super(EfficientnetB1, self).__init__()
@@ -39,6 +40,7 @@ class EfficientnetB1(nn.Module):
     def init_params(self):
         nn.init.kaiming_uniform_(self.fc.weight)
         nn.init.zeros_(self.fc.bias)
+        
 
 class EfficientnetB2(nn.Module):
     def __init__(self, num_classes=18):
@@ -57,6 +59,7 @@ class EfficientnetB2(nn.Module):
     def init_params(self):
         nn.init.kaiming_uniform_(self.fc.weight)
         nn.init.zeros_(self.fc.bias)
+    
     
 class EfficientnetB3(nn.Module):
     def __init__(self, num_classes=18):
@@ -83,4 +86,6 @@ if __name__ == '__main__':
     model = EfficientnetB0()
     x = torch.randn(1, 3, 384, 512)
     y = model(x)
-    print(y)
+    
+    model = EfficientnetB3()
+    print(model.parameters)

@@ -33,13 +33,14 @@ class EarlyStopping:
                 self.early_stop = True
         else:
             self.best_score = score
-            self.count = 0
+            self.counter = 0
             self.save_checkpoint(loss, model)
     
     def save_checkpoint(self, loss, model):
         if self.verbose:
             print(f'Validation loss decreased ({self.val_loss_min:.6f} --> {loss:.6f}). Saving model ...')
-        torch.save(model.state_dict(), self.path) # 과연 save point 해 두는게 좋을까? 아니면 break 끝내고 다시 load 하는게 좋을까? 아니면 break 끝내고 best score 뽑아서 그거로 load 하는게 좋을까?
+        # torch.save(model.state_dict(), self.path) 
+        # 과연 save point 해 두는게 좋을까? 아니면 break 끝내고 다시 load 하는게 좋을까? 아니면 break 끝내고 best score 뽑아서 그거로 load 하는게 좋을까?
         self.val_loss_min = loss
         
     def load_checkpoint(self, model):

@@ -12,7 +12,7 @@ from torch.utils.data import DataLoader
 
 from Dataset.dataset import MaskTestDataset
 from Dataset.data_augmentation import test_transform
-from Models.model import EfficientnetB0, EfficientnetB1, EfficientnetB2
+from Models.model import EfficientnetB0, EfficientnetB1, EfficientnetB2, EfficientnetB3
 
 def load_model(saved_model, num_classes, device):
     model = torch.load_state_dict(saved_model)
@@ -49,8 +49,8 @@ if __name__ == '__main__':
     test_dataset = MaskTestDataset(output_df, test_transform)
     test_dataloader = DataLoader(test_dataset, batch_size=32, shuffle=False, num_workers=4)
             
-    model = EfficientnetB1(num_classes=18).to(device)
-    model.load_state_dict(torch.load(os.path.join(os.getcwd(), 'Models', 'saved_model', 'model_Efficientnet-b1_0.9896630180733852_2022-10-29 15:25:46.292254.pth')))
+    model = EfficientnetB3(num_classes=18).to(device)
+    model.load_state_dict(torch.load(os.path.join(os.getcwd(), 'Models', 'saved_model', 'model_Efficientnet-b3_0.9837217278584751_2022-10-29 17:15:55.033634.pth')))
     model.eval()
     preds = inference(model, test_dataloader, device)
     

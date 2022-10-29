@@ -21,7 +21,7 @@ import wandb
 from utils.boards import wandb_init
 from Dataset.dataset import MaskTestDataset, MaskTrainDataset
 from Dataset.data_augmentation import train_transform
-from Models.model import EfficientnetB0, EfficientnetB1, EfficientnetB2
+from Models.model import EfficientnetB0, EfficientnetB1, EfficientnetB2, EfficientnetB3
 from Models.loss import LabelSmoothingCrossEntropy, FocalLoss
 from Models.metric import EarlyStopping
 
@@ -149,7 +149,7 @@ def train(model, optimizer, train_loader, val_loader, criterion, scheduler, devi
     
     early_stopping = EarlyStopping(patience=5, verbose=True, path = f'{os.getcwd()}/Models/saved_model/model_{model.name}_{best_score}_{datetime.today()}.pth')
     
-    for epoch in range(1, 21):
+    for epoch in range(EPOCHS):
         model.train()
         train_loss = []
         train_score = 0
@@ -176,7 +176,7 @@ def train(model, optimizer, train_loader, val_loader, criterion, scheduler, devi
         
         val_loss, val_score = validation(model, criterion, val_loader, device)
         
-        print(f'Epoch: {epoch}, Train Loss: {tr_loss:.4f}, Train Score: {train_score:.4f}, Val Loss: {val_loss:.4f}, Val Score: {val_score:.4f}')
+        print(f'Epoch: {epoch+1}, Train Loss: {tr_loss:.4f}, Train Score: {train_score:.4f}, Val Loss: {val_loss:.4f}, Val Score: {val_score:.4f}')
         wandb.log({'train_loss': tr_loss, 'train_score': train_score, 'val_loss': val_loss, 'val_score': val_score})
         
         if scheduler is not None:
@@ -196,6 +196,8 @@ def train(model, optimizer, train_loader, val_loader, criterion, scheduler, devi
         gc.collect()
     
     torch.save(best_model.state_dict(), f'{os.getcwd()}/Models/saved_model/model_{model.name}_{best_score}_{datetime.today()}.pth')
+    # Which is better to save? best_score model? or minimum val_loss model?
+    # Hmm......
     
     return best_model, best_score
 
@@ -247,28 +249,29 @@ if __name__ == '__main__':
     
     ## dataset for unlabeled data 
     unlabel_train_dataset = MaskTrainDataset(unlabel_data_df, train_transform)
-    unlabel_train_loader = DataLoader(unlabel_train_dataset, batch_size=32, shuffle=True, num_workers=0)
+    unlabel_train_loader = DataLoader(unlabel_train_dataset, batch_size=32, shuffle=True, num_workers=2)
     
     config = {
         "learning_rate": 0.001,
-        "epochs": 20,
+        "epochs": 'max 100 and early stopping adjusted',
         "batch_size": 32,
         "seed": 41,
         "img_size": (220, 224),
         "optimizer": "AdamW",
-        "loss": "FocalLoss - gamma=2, with class_weight",
+        "loss": "FocalLoss - gamma=2",
         "scheduler": "CosineAnnealingLR",
-        "model": "EfficientnetB1",
+        "model": "EfficientnetB3",
         "split": "0.2"
     }
     wandb_init(config)
     
-    model = EfficientnetB2()
+    model = EfficientnetB3()
     
     # print(model.name)
 
     criterion = FocalLoss(alpha=None, gamma=2).to(device)    
     optimizer = AdamW(model.parameters(), lr=0.001)
+    # 2022-10-30: Let's check lr = 0.001 -> 0.0001, weight_decay = 0, 0.01, 0.001, 0.0001...
     
     scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=20, eta_min=0.0001)
     # scheduler = torch.optim.lr_scheduler.CosineAnnealingWarmRestarts(optimizer, T_0=10, T_mult=2, eta_min=0.0001)
