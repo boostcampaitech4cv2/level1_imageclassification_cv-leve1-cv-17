@@ -12,7 +12,7 @@ from torch.optim import SGD, AdamW
 from torch.optim.lr_scheduler import StepLR
 from torch.utils.data import DataLoader
 from tqdm.auto import tqdm
-from tqdm import tqdm_notebook
+from tqdm import tqdm_notebook, notebook
 from sklearn.metrics import f1_score
 from sklearn.model_selection import StratifiedKFold
 # from torch.utils.tensorboard import SummaryWriter
@@ -44,20 +44,8 @@ def seed_everything(seed):
 # 2. Forward the test set to the trained model and get the pseudo label.
 # 3. Calculate the unlabeled loss using pseudo label.
 # 4. train 1 epoch on labeled data(train set) each 50 unlabeled batches.
-# 5. repeat 2~4 until the number of epochs is reached.
+# 5. repeat 2~4 until the number of epochs is reached.  
 
-def alpha_weight(step):
-    
-    T1 = 10
-    T2 = 20
-    af = 3
-    
-    if step < T1:
-        return 0.0
-    elif step > T2:
-        return af
-    else:
-        return ((step - T1) / (T2 - T1)) * af
 
 def semisup_train(model, 
                   label_train_loader, 
@@ -67,71 +55,68 @@ def semisup_train(model,
                   optimizer, 
                   device, 
                   scheduler):
-    EPOCHS = 100
+    alpha = 0
+    alpha_t = 1e-4
+    T1 = 10
+    T2 = 20
     
+    EPOCHS = 40
     step = 100
     model.to(device)
     
     best_score = 0
     best_model = None
     
-    
-    model.train()
     for epoch in range(EPOCHS):
         
         train_loss = []
-        train_score = 0
-        train_correct = 0
-        
-        count = 0
-        for i, (img, unlabeled) in tqdm(enumerate(unlabel_train_loader)):
-            img, unlabeled = img.float().to(device), unlabeled.type(torch.LongTensor).to(device)
-            if img is None:
-                print('train img is empty!')
+        correct = 0
+        total = 0
+    
+        for label_data, unlabel_data in tqdm(zip(iter(label_train_loader), iter(unlabel_train_loader))):
             
-            
-            model.eval()
-            unlabeled = model(img)
-            _, pseudo_labeled = torch.max(unlabeled, 1)
-            model.train()
-            
-            output = model(img)
-            unlabeled_loss = alpha_weight(step) * criterion(output, pseudo_labeled)
+            label_img, labels = label_data[0].float().to(device), label_data[1].type(torch.LongTensor).to(device)
+            unlabel_img = unlabel_data[0].float().to(device)
             
             optimizer.zero_grad()
-            unlabeled_loss.backward()
+            model_pred = model(label_img)
+            
+            if alpha > 0:
+                unlabel_model_pred = model(unlabel_img)
+                _, pseudo_labels = torch.max(unlabel_model_pred, dim=1)
+                loss = criterion(model_pred, labels) + alpha * criterion(unlabel_model_pred, pseudo_labels)
+            
+            else:
+                loss = criterion(model_pred, labels)
+            
+            loss.backward()
             optimizer.step()
+            _, predicted = torch.max(model_pred, 1)
+            total += labels.size(0)
+            correct += (predicted == labels).type(torch.float).sum().item()
             
-            if i % 4 == 0: # check model train with labeled data every 4 unlabeled batches
-                for img, label in iter(label_train_loader):
-                    img, label = img.float().to(device), label.type(torch.LongTensor).to(device)
-                    
-                    output = model(img)
-                    labeled_loss = criterion(output, label)
-                    
-                    optimizer.zero_grad()
-                    labeled_loss.backward()
-                    optimizer.step()
-                    
-                    train_loss.append(labeled_loss.item())
-                    train_correct += (output.argmax(1) == label).type(torch.float).sum().item()
-                step += 1
-                count = 0
+            train_loss.append(loss.item())
             
-            count += 1
+            
+            
+        if (epoch > T1) and (epoch < T2):
+            alpha + alpha_t ( (epoch - T1) / (T2 - T1) )
+        
+        elif epoch >= T2:
+            alpha = alpha_t
+        
+           
+        if scheduler is not None:
+            scheduler.step()
                 
-        train_score = train_correct / len(label_train_loader.dataset)
-        train_mean_loss = np.mean(train_loss)
+        train_score = correct / total
+        tr_loss_mean = np.mean(train_loss)
             
         val_loss, val_score = validation(model, criterion, label_val_loader, device)
             
-        print(f'Epoch: {epoch+1}/{EPOCHS} | Step: {step} | Train Loss: {train_mean_loss:.4f} | Train F1: {train_score:.4f} | Val Loss: {val_loss:.4f} | Val F1: {val_score:.4f}')
-        wandb.log({'train_loss': train_mean_loss, 'train_score': train_score, 'val_loss': val_loss, 'val_score': val_score})
-        
-        
-        if scheduler is not None:
-            scheduler.step()
-            
+        print(f'Epoch: {epoch+1}/{EPOCHS} | Step: {step} | Train Loss: {tr_loss_mean:.4f} | Tra {train_score:.4f} | Val Loss: {val_loss:.4f} | Val F1: {val_score:.4f}')
+        wandb.log({'train_loss': tr_loss_mean, 'train_score': train_score, 'val_loss': val_loss, 'val_score': val_score})
+             
         if best_score < val_score:
             best_model = model
             best_score = val_score
@@ -240,18 +225,18 @@ if __name__ == '__main__':
     label_dataset = MaskTrainDataset(data_df, train_transform)   
     label_train_dataset, label_val_dataset = label_dataset.split_dataset()
     
-    label_train_loader = DataLoader(label_train_dataset, batch_size=32, shuffle=True, num_workers=4)
-    label_val_loader = DataLoader(label_val_dataset, batch_size=32, shuffle=False, num_workers=4)
+    label_train_loader = DataLoader(label_train_dataset, batch_size=64, shuffle=True, num_workers=0)
+    label_val_loader = DataLoader(label_val_dataset, batch_size=64, shuffle=False, num_workers=0)
     
     
     ## dataset for unlabeled data 
     unlabel_train_dataset = MaskTrainDataset(unlabel_data_df, train_transform)
-    unlabel_train_loader = DataLoader(unlabel_train_dataset, batch_size=32, shuffle=True, num_workers=4)
+    unlabel_train_loader = DataLoader(unlabel_train_dataset, batch_size=64, shuffle=True, num_workers=0)
     
     config = {
         "learning_rate": 0.001,
         "epochs": 20,
-        "batch_size": 32,
+        "batch_size": 64,
         "seed": 41,
         "img_size": (220, 224),
         "optimizer": "AdamW",
@@ -260,14 +245,12 @@ if __name__ == '__main__':
         "model": "EfficientnetB2",
         "split": "0.2"
     }
-    # wandb_init(config)
+    wandb_init(config)
     
     model = EfficientnetB2()
-    model.eval()
     
 
-    criterion = FocalLoss(alpha=None, gamma=2).to(device)
-    
+    criterion = FocalLoss(alpha=None, gamma=2).to(device)    
     optimizer = AdamW(model.parameters(), lr=0.001)
     
     scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=20, eta_min=0.0001)
