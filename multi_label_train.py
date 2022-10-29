@@ -93,7 +93,6 @@ def train(data_dir, model_dir, args):
                         "learning_rate" : args.lr,
                         "epochs"    : args.epochs,
                         "model_name"  : args.model,
-                        "criterion_name" : args.criterion,
                         "optimizer" : args.optimizer,
                         "seed"  : args.seed
                 })
@@ -197,7 +196,7 @@ def train(data_dir, model_dir, args):
             preds_age = torch.argmax(age_outs, dim=-1) 
             preds = torch.stack((preds_mask, preds_gender, preds_age), dim=1)
 
-            mask_loss = criterion(mask_outs, mask_labels) # crossentropy , 기존의 loss
+            mask_loss = criterion(mask_outs, mask_labels) # crossentropy
             gender_loss = criterion2(gender_outs, gender_labels) # label_smoothing
             age_loss = criterion3(age_outs, age_labels) # focal
 
@@ -218,7 +217,7 @@ def train(data_dir, model_dir, args):
                 train_age_acc = age_matches / args.batch_size / args.log_interval
                 current_lr = get_lr(optimizer)
                 print(
-                    f"Epoch[{epoch}/{args.epochs}]({idx + 1}/{len(train_loader)}) || "
+                    f"Epoch[{epoch + 1}/{args.epochs}]({idx + 1}/{len(train_loader)}) || "
                     f"training loss {train_loss:4.4} || acc {train_acc:4.2%} || mask acc {train_mask_acc:4.2%} || gen acc {train_gender_acc:4.2%} || age acc {train_age_acc:4.2%} || lr {current_lr}"
                 )
                 logger.add_scalar("Train/loss", train_loss, epoch * len(train_loader) + idx)
@@ -307,12 +306,12 @@ if __name__ == '__main__':
     parser.add_argument("--resize", nargs="+", type=list, default=[240, 240], help='resize size for image when training')
     parser.add_argument('--batch_size', type=int, default=64, help='input batch size for training (default: 64)')
     parser.add_argument('--valid_batch_size', type=int, default=1000, help='input batch size for validing (default: 1000)')
-    parser.add_argument('--model', type=str, default='EfficientNet_B1', help='model type (default: EfficientNet_B1)')
+    parser.add_argument('--model', type=str, default='ResNet34', help='model type (default: EfficientNet_B0)')
     parser.add_argument('--optimizer', type=str, default='AdamW', help='optimizer type (default: AdamW)')
     parser.add_argument('--lr', type=float, default=1e-3, help='learning rate (default: 1e-3)')
     parser.add_argument('--val_ratio', type=float, default=0.2, help='ratio for validaton (default: 0.2)')
     parser.add_argument('--criterion', type=str, default='cross_entropy', help='criterion type (default: cross_entropy)')
-    parser.add_argument('--criterion2', type=str, default='label_smoothing', help='criterion type (default: label_smoothing)')
+    parser.add_argument('--criterion2', type=str, default='cross_entropy', help='criterion type (default: label_smoothing)')
     parser.add_argument('--criterion3', type=str, default='focal', help='criterion type (default: focal)')
     parser.add_argument('--scheduler', type=str, default='StepLR')
     parser.add_argument('--lr_decay_step', type=int, default=5, help='learning rate scheduler deacy step (default: 20)')

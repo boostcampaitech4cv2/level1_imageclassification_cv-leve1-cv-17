@@ -68,7 +68,7 @@ class MyAugmentation:
     def __init__(self, resize, mean, std, **args):
         self.transform = Compose([
             CenterCrop((320, 256)),
-            cutout(mask_size=40, p=1, cutout_inside =False),
+            cutout(mask_size=50, p=1, cutout_inside =False),
             Resize(resize, Image.BILINEAR),
             ToTensor(),
             Normalize(mean=mean, std=std),
