@@ -68,7 +68,7 @@ class MyAugmentation:
     def __init__(self, resize, mean, std, **args):
         self.transform = Compose([
             CenterCrop((320, 256)),
-            cutout(mask_size=50, p=1, cutout_inside =False),
+            cutout(mask_size=40, p=1, cutout_inside =False),
             Resize(resize, Image.BILINEAR),
             ToTensor(),
             Normalize(mean=mean, std=std),
@@ -341,7 +341,7 @@ class TestDataset(Dataset):
     def __len__(self):
         return len(self.img_paths)
 
-def getDataloader(dataset, train_idx, valid_idx, batch_size, num_workers, use_cuda):
+def getDataloader(dataset, train_idx, valid_idx, batch_size, valid_batch_size, num_workers, use_cuda):
     # 인자로 전달받은 dataset에서 train_idx에 해당하는 Subset 추출
     train_set = torch.utils.data.Subset(dataset,
                                         indices=train_idx)
@@ -361,7 +361,7 @@ def getDataloader(dataset, train_idx, valid_idx, batch_size, num_workers, use_cu
     # 추출된 Valid Subset으로 DataLoader 생성
     val_loader = torch.utils.data.DataLoader(
         val_set,
-        batch_size=batch_size,
+        batch_size=valid_batch_size,
         num_workers=num_workers,
         drop_last=True,
         shuffle=False,

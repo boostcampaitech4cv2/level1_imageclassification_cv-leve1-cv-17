@@ -57,16 +57,16 @@ def increment_path(path, exist_ok=False):
 
 
 def train(data_dir, model_dir, args):
-    # wandb.login
+    wandb.login
 
-    # wandb.init(project = "mask_classification", entity = "cv17",
-    #             config = {"batch_size": args.batch_size,
-    #                     "learning_rate" : args.lr,
-    #                     "epochs"    : args.epochs,
-    #                     "model_name"  : args.model,
-    #                     "optimizer" : args.optimizer,
-    #                     "seed"  : args.seed
-    #             })
+    wandb.init(project = "mask_classification", entity = "cv17",
+                config = {"batch_size": args.batch_size,
+                        "learning_rate" : args.lr,
+                        "epochs"    : args.epochs,
+                        "model_name"  : args.model,
+                        "optimizer" : args.optimizer,
+                        "seed"  : args.seed
+                })
 
 
     seed_everything(args.seed)
@@ -106,7 +106,7 @@ def train(data_dir, model_dir, args):
 
     for i, (train_idx, valid_idx) in enumerate(skf.split(dataset.image_paths, labels)):
         train_loader, val_loader, len_val_set = getDataloader(
-                dataset, train_idx, valid_idx, args.batch_size, num_workers=multiprocessing.cpu_count() // 2, use_cuda=use_cuda
+                dataset, train_idx, valid_idx, args.batch_size, args.valid_batch_size, num_workers=multiprocessing.cpu_count() // 2, use_cuda=use_cuda
             )
         # -- model
         model_module = getattr(import_module("model"), args.model) 
@@ -179,7 +179,7 @@ def train(data_dir, model_dir, args):
                         f"training loss {train_loss:4.4} || acc {train_acc:4.2%} || mask acc {train_mask_acc:4.2%} || gen acc {train_gender_acc:4.2%} || age acc {train_age_acc:4.2%} || lr {current_lr}"
                     )
                     logger.add_scalar("Train/loss", train_loss, epoch * len(train_loader) + idx)
-                    # wandb.log({'Train Avg Loss': train_loss, 'Train Acc': train_acc, 'Mask Acc': train_mask_acc, 'Gen Acc': train_gender_acc, 'Age Acc': train_age_acc})
+                    wandb.log({'Train Avg Loss': train_loss, 'Train Acc': train_acc, 'Mask Acc': train_mask_acc, 'Gen Acc': train_gender_acc, 'Age Acc': train_age_acc})
                 
                     loss_value = 0
                     matches = 0
@@ -233,12 +233,12 @@ def train(data_dir, model_dir, args):
                 logger.add_scalar("Val/loss", val_loss, epoch)
                 logger.add_scalar("Val/accuracy", val_acc, epoch)
                 print()
-                # wandb.log({
-                #         "Validation Avg Loss": val_loss,
-                #         "Validation Accuracy" : val_acc
-                #         })
+                wandb.log({
+                        "Validation Avg Loss": val_loss,
+                        "Validation Accuracy" : val_acc
+                        })
 
-    # wandb.finish()
+    wandb.finish()
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()

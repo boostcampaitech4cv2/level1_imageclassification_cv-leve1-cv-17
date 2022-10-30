@@ -265,17 +265,11 @@ def train(data_dir, model_dir, args):
                 matches = torch.all((preds==labels), dim=1).sum().item()
                 val_loss_items.append(loss_item)
                 val_acc_items.append(matches)
-
-                # if figure is None:
-                #     inputs_np = torch.clone(inputs).detach().cpu().permute(0, 2, 3, 1).numpy()
-                #     inputs_np = dataset_module.denormalize_image(inputs_np, dataset.mean, dataset.std)
-                #     figure = grid_image(
-                #         inputs_np, labels, preds, n=16, shuffle=args.dataset != "MaskMultiLabelDataset"
-                #     )
             
             val_loss = np.sum(val_loss_items) / len(val_loader)
             val_acc = np.sum(val_acc_items) / len(val_set)
             best_val_acc = max(val_acc, best_val_acc)
+
             if val_loss < best_val_loss:   
                 print(f"New best model for val loss : {val_acc:4.2%}! saving the best model..")
                 torch.save(model.module.state_dict(), f"{save_dir}/best.pth")
