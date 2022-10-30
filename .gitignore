@@ -1,1 +1,10 @@
 __pycache__
+wandb/*
+._*.jpg
+*.jpg
+*.csv
+dataset/*
+*.pth
+models/*
+git_key
+git_key.pub

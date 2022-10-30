@@ -19,6 +19,10 @@ from dataset import MaskBaseDataset
 from loss import create_criterion
 
 import wandb
+from sklearn.metrics import f1_score
+import yaml
+from easydict import EasyDict
+
 
 def seed_everything(seed):
     torch.manual_seed(seed)
@@ -32,7 +36,7 @@ def seed_everything(seed):
 
 def get_lr(optimizer):
     for param_group in optimizer.param_groups:
-        return param_group['lr']
+        return param_group["lr"]
 
 
 def grid_image(np_images, gts, preds, n=16, shuffle=False):
@@ -40,7 +44,9 @@ def grid_image(np_images, gts, preds, n=16, shuffle=False):
     assert n <= batch_size
 
     choices = random.choices(range(batch_size), k=n) if shuffle else list(range(n))
-    figure = plt.figure(figsize=(12, 18 + 2))  # cautions: hardcoded, 이미지 크기에 따라 figsize 를 조정해야 할 수 있습니다. T.T
+    figure = plt.figure(
+        figsize=(12, 18 + 2)
+    )  # cautions: hardcoded, 이미지 크기에 따라 figsize 를 조정해야 할 수 있습니다. T.T
     plt.subplots_adjust(top=0.8)  # cautions: hardcoded, 이미지 크기에 따라 top 를 조정해야 할 수 있습니다. T.T
     n_grid = int(np.ceil(n ** 0.5))
     tasks = ["mask", "gender", "age"]
@@ -50,11 +56,12 @@ def grid_image(np_images, gts, preds, n=16, shuffle=False):
         image = np_images[choice]
         gt_decoded_labels = MaskBaseDataset.decode_multi_class(gt)
         pred_decoded_labels = MaskBaseDataset.decode_multi_class(pred)
-        title = "\n".join([
-            f"{task} - gt: {gt_label}, pred: {pred_label}"
-            for gt_label, pred_label, task
-            in zip(gt_decoded_labels, pred_decoded_labels, tasks)
-        ])
+        title = "\n".join(
+            [
+                f"{task} - gt: {gt_label}, pred: {pred_label}"
+                for gt_label, pred_label, task in zip(gt_decoded_labels, pred_decoded_labels, tasks)
+            ]
+        )
 
         plt.subplot(n_grid, n_grid, idx + 1, title=title)
         plt.xticks([])
@@ -83,10 +90,16 @@ def increment_path(path, exist_ok=False):
         return f"{path}{n}"
 
 
+def competition_metric(true, pred):
+    return f1_score(true, pred, average="macro")
+
+
 def train(data_dir, model_dir, args):
     seed_everything(args.seed)
 
-    save_dir = increment_path(os.path.join(model_dir, args.name))
+    # save_dir = increment_path(os.path.join(model_dir, args.name))
+    args.experiment_name = "_".join(args.experiment_name.split(" "))
+    save_dir = increment_path(os.path.join(model_dir, args.experiment_name))
 
     # -- settings
     use_cuda = torch.cuda.is_available()
@@ -94,18 +107,14 @@ def train(data_dir, model_dir, args):
 
     # -- dataset
     dataset_module = getattr(import_module("dataset"), args.dataset)  # default: MaskBaseDataset
-    dataset = dataset_module(
-        data_dir=data_dir,
-    )
+    dataset = dataset_module(data_dir=data_dir,)
     num_classes = dataset.num_classes  # 18
 
     # -- augmentation
-    transform_module = getattr(import_module("dataset"), args.augmentation)  # default: BaseAugmentation
-    transform = transform_module(
-        resize=args.resize,
-        mean=dataset.mean,
-        std=dataset.std,
-    )
+    transform_module = getattr(
+        import_module("dataset"), args.augmentation
+    )  # default: BaseAugmentation
+    transform = transform_module(resize=args.resize, mean=dataset.mean, std=dataset.std,)
     dataset.set_transform(transform)
 
     # -- data_loader
@@ -131,25 +140,23 @@ def train(data_dir, model_dir, args):
 
     # -- model
     model_module = getattr(import_module("model"), args.model)  # default: BaseModel
-    model = model_module(
-        num_classes=num_classes
-    ).to(device)
+    model = model_module(num_classes=num_classes).to(device)
+    # torchsummary
+    # summary(model, (3, 384, 512))
     model = torch.nn.DataParallel(model)
 
     # -- loss & metric
     criterion = create_criterion(args.criterion)  # default: cross_entropy
     opt_module = getattr(import_module("torch.optim"), args.optimizer)  # default: SGD
     optimizer = opt_module(
-        filter(lambda p: p.requires_grad, model.parameters()),
-        lr=args.lr,
-        weight_decay=5e-4
+        filter(lambda p: p.requires_grad, model.parameters()), lr=args.lr, weight_decay=5e-4
     )
-    scheduler = StepLR(optimizer, args.lr_decay_step, gamma=0.5)
-    # scheduler = CosineAnnealingLR(optimizer, 2)
-    
+    # scheduler = StepLR(optimizer, args.lr_decay_step, gamma=0.5)
+    scheduler = CosineAnnealingLR(optimizer, 5)
+
     # -- logging
     logger = SummaryWriter(log_dir=save_dir)
-    with open(os.path.join(save_dir, 'config.json'), 'w', encoding='utf-8') as f:
+    with open(os.path.join(save_dir, "config.json"), "w", encoding="utf-8") as f:
         json.dump(vars(args), f, ensure_ascii=False, indent=4)
 
     best_val_acc = 0
@@ -160,21 +167,38 @@ def train(data_dir, model_dir, args):
         loss_value = 0
         matches = 0
         for idx, train_batch in enumerate(train_loader):
-            inputs, labels = train_batch
+            inputs, (mask_labels, gender_labels, age_labels) = train_batch
             inputs = inputs.to(device)
-            labels = labels.to(device)
+            mask_labels = mask_labels.to(device)
+            gender_labels = gender_labels.to(device)
+            age_labels = age_labels.to(device)
+            labels = torch.stack((mask_labels, gender_labels, age_labels), dim=1)
 
             optimizer.zero_grad()
 
             outs = model(inputs)
-            preds = torch.argmax(outs, dim=-1)
-            loss = criterion(outs, labels)
+            (mask_outs, gender_outs, age_outs) = torch.split(outs, [3, 2, 3], dim=1)
+
+            preds_mask = torch.argmax(mask_outs, dim=-1)
+            preds_gender = torch.argmax(gender_outs, dim=-1)
+            preds_age = torch.argmax(age_outs, dim=-1)
+            preds = torch.stack((preds_mask, preds_gender, preds_age), dim=1)
+
+            mask_loss = criterion(mask_outs, mask_labels)
+            gender_loss = criterion(gender_outs, gender_labels)
+            age_loss = criterion(age_outs, age_labels)
+
+            loss = mask_loss * 0.2 + gender_loss * 0.3 + age_loss * 0.5
 
             loss.backward()
             optimizer.step()
 
             loss_value += loss.item()
-            matches += (preds == labels).sum().item()
+            matches += torch.all((preds == labels), dim=1).sum().item()
+            # matches += (mask_outs == mask_labels).sum().item()
+            # matches += (gender_outs == gender_labels).sum().item()
+            # matches += (age_outs == age_labels).sum().item()
+
             if (idx + 1) % args.log_interval == 0:
                 train_loss = loss_value / args.log_interval
                 train_acc = matches / args.batch_size / args.log_interval
@@ -186,9 +210,9 @@ def train(data_dir, model_dir, args):
                 logger.add_scalar("Train/loss", train_loss, epoch * len(train_loader) + idx)
                 logger.add_scalar("Train/accuracy", train_acc, epoch * len(train_loader) + idx)
 
-                #wandb
-                wandb.log({"Train F1-Score":train_acc, "Train Avg Loss":train_loss})
-                
+                # wandb
+                wandb.log({"Train Accuracy": train_acc, "Train Avg Loss": train_loss})
+
                 loss_value = 0
                 matches = 0
 
@@ -201,28 +225,53 @@ def train(data_dir, model_dir, args):
             val_loss_items = []
             val_acc_items = []
             figure = None
+
+            model_preds = []
+            true_labels = []
+
             for val_batch in val_loader:
-                inputs, labels = val_batch
+                inputs, (mask_labels, gender_labels, age_labels) = val_batch
                 inputs = inputs.to(device)
-                labels = labels.to(device)
+                mask_labels = mask_labels.to(device)
+                gender_labels = gender_labels.to(device)
+                age_labels = age_labels.to(device)
+                labels = torch.stack((mask_labels, gender_labels, age_labels), dim=1)
 
                 outs = model(inputs)
-                preds = torch.argmax(outs, dim=-1)
+                (mask_outs, gender_outs, age_outs) = torch.split(outs, [3, 2, 3], dim=1)
 
-                loss_item = criterion(outs, labels).item()
-                acc_item = (labels == preds).sum().item()
+                preds_mask = torch.argmax(mask_outs, dim=-1)
+                preds_gender = torch.argmax(gender_outs, dim=-1)
+                preds_age = torch.argmax(age_outs, dim=-1)
+                preds = torch.stack((preds_mask, preds_gender, preds_age), dim=1)
+
+                mask_loss = criterion(mask_outs, mask_labels)
+                gender_loss = criterion(gender_outs, gender_labels)
+                age_loss = criterion(age_outs, age_labels)
+
+                loss = mask_loss * 0.2 + gender_loss * 0.3 + age_loss * 0.5
+
+                # preds = torch.argmax(outs, dim=-1)
+
+                loss_item = loss.item()
+                acc_item = torch.all((preds == labels), dim=1).sum().item()
                 val_loss_items.append(loss_item)
                 val_acc_items.append(acc_item)
 
-                if figure is None:
-                    inputs_np = torch.clone(inputs).detach().cpu().permute(0, 2, 3, 1).numpy()
-                    inputs_np = dataset_module.denormalize_image(inputs_np, dataset.mean, dataset.std)
-                    figure = grid_image(
-                        inputs_np, labels, preds, n=16, shuffle=args.dataset != "MaskSplitByProfileDataset"
-                    )
+                # if figure is None:
+                #     inputs_np = torch.clone(inputs).detach().cpu().permute(0, 2, 3, 1).numpy()
+                #     inputs_np = dataset_module.denormalize_image(inputs_np, dataset.mean, dataset.std)
+                #     figure = grid_image(
+                #         inputs_np, labels, preds, n=16, shuffle=args.dataset != "MaskSplitByProfileDataset"
+                #     )
+
+                model_preds += preds.argmax(1).detach().cpu().numpy().tolist()
+                true_labels += labels.detach().cpu().numpy().tolist()
 
             val_loss = np.sum(val_loss_items) / len(val_loader)
             val_acc = np.sum(val_acc_items) / len(val_set)
+            # val_f1 = competition_metric(true_labels, model_preds)
+
             best_val_loss = min(best_val_loss, val_loss)
             if val_acc > best_val_acc:
                 print(f"New best model for val accuracy : {val_acc:4.2%}! saving the best model..")
@@ -235,45 +284,30 @@ def train(data_dir, model_dir, args):
             )
             logger.add_scalar("Val/loss", val_loss, epoch)
             logger.add_scalar("Val/accuracy", val_acc, epoch)
-            logger.add_figure("results", figure, epoch)
+            # logger.add_scalar("Val/f1score", val_f1, epoch)
+            # logger.add_figure("results", figure, epoch)
             print()
-            
-            #wandb
-            wandb.log({"Validation F1-Score": val_acc, "Validation Avg Loss":val_loss})
+
+            # wandb
+            wandb.log({"Validation Accuracy": val_acc, "Validation Avg Loss": val_loss})
 
 
-if __name__ == '__main__':
-    parser = argparse.ArgumentParser()
+if __name__ == "__main__":
 
-    # Data and model checkpoints directories
-    parser.add_argument('--seed', type=int, default=42, help='random seed (default: 42)')
-    parser.add_argument('--epochs', type=int, default=1, help='number of epochs to train (default: 1)')
-    parser.add_argument('--dataset', type=str, default='MaskBaseDataset', help='dataset augmentation type (default: MaskBaseDataset)')
-    parser.add_argument('--augmentation', type=str, default='BaseAugmentation', help='data augmentation type (default: BaseAugmentation)')
-    parser.add_argument("--resize", nargs="+", type=list, default=[128, 96], help='resize size for image when training')
-    parser.add_argument('--batch_size', type=int, default=64, help='input batch size for training (default: 64)')
-    parser.add_argument('--valid_batch_size', type=int, default=1000, help='input batch size for validing (default: 1000)')
-    parser.add_argument('--model', type=str, default='BaseModel', help='model type (default: BaseModel)')
-    parser.add_argument('--optimizer', type=str, default='SGD', help='optimizer type (default: SGD)')
-    parser.add_argument('--lr', type=float, default=1e-3, help='learning rate (default: 1e-3)')
-    parser.add_argument('--val_ratio', type=float, default=0.2, help='ratio for validaton (default: 0.2)')
-    parser.add_argument('--criterion', type=str, default='cross_entropy', help='criterion type (default: cross_entropy)')
-    parser.add_argument('--lr_decay_step', type=int, default=20, help='learning rate scheduler deacy step (default: 20)')
-    parser.add_argument('--log_interval', type=int, default=20, help='how many batches to wait before logging training status')
-    parser.add_argument('--name', default='exp', help='model save at {SM_MODEL_DIR}/{name}')
+    CONFIG_FILE_NAME = "./config/config.yaml"
+    with open(CONFIG_FILE_NAME, "r") as yml_config_file:
+        args = yaml.load(yml_config_file, Loader=yaml.FullLoader)
+        args = EasyDict(args["train"])
 
-    # Container environment
-    parser.add_argument('--data_dir', type=str, default=os.environ.get('SM_CHANNEL_TRAIN', '/opt/ml/input/data/train/images'))
-    parser.add_argument('--model_dir', type=str, default=os.environ.get('SM_MODEL_DIR', './model'))
-
-    args = parser.parse_args()
     print(args)
 
     data_dir = args.data_dir
     model_dir = args.model_dir
 
-    wandb.init(project="mask_classification", entity="lylajeon", name = 'base',config=args)
-    
+    wandb.init(
+        project="mask_classification", entity="lylajeon", name=args.experiment_name, config=args,
+    )
+
     train(data_dir, model_dir, args)
-    
+
     wandb.finish()
