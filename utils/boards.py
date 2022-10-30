@@ -11,8 +11,8 @@ from datetime import datetime
 def wandb_init(config):
     user = 'arislid'
     project = 'pstage_01'
-    # display_name = f'efficientnet-b2 with pseudo labeling, {datetime.today()}'
-    display_name = f'efficientnet-b3, batch size 32, focal loss, CosineAnnealingLR, adamw {datetime.today()}'
+    display_name = f'efficientnet-b2 with pseudo labeling, {datetime.today()}'
+    # display_name = f'efficientnet-b3, batch size 32, focal loss, CosineAnnealingLR, adamw {datetime.today()}'
     
     wandb.init(entity=user, project=project, name=display_name, config=config)
 

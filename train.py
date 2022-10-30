@@ -243,8 +243,8 @@ if __name__ == '__main__':
     label_dataset = MaskTrainDataset(data_df, train_transform)   
     label_train_dataset, label_val_dataset = label_dataset.split_dataset()
     
-    label_train_loader = DataLoader(label_train_dataset, batch_size=32, shuffle=True, num_workers=4)
-    label_val_loader = DataLoader(label_val_dataset, batch_size=32, shuffle=False, num_workers=4)
+    label_train_loader = DataLoader(label_train_dataset, batch_size=32, shuffle=True, num_workers=2)
+    label_val_loader = DataLoader(label_val_dataset, batch_size=32, shuffle=False, num_workers=2)
     
     
     ## dataset for unlabeled data 
@@ -252,7 +252,7 @@ if __name__ == '__main__':
     unlabel_train_loader = DataLoader(unlabel_train_dataset, batch_size=32, shuffle=True, num_workers=2)
     
     config = {
-        "learning_rate": 0.001,
+        "learning_rate": 0.0001,
         "epochs": 'max 100 and early stopping adjusted',
         "batch_size": 32,
         "seed": 41,
@@ -260,28 +260,28 @@ if __name__ == '__main__':
         "optimizer": "AdamW",
         "loss": "FocalLoss - gamma=2",
         "scheduler": "CosineAnnealingLR",
-        "model": "EfficientnetB3",
+        "model": "EfficientnetB2",
         "split": "0.2"
     }
     wandb_init(config)
     
-    model = EfficientnetB3()
+    model = EfficientnetB2()
     
     # print(model.name)
 
     criterion = FocalLoss(alpha=None, gamma=2).to(device)    
-    optimizer = AdamW(model.parameters(), lr=0.001)
+    optimizer = AdamW(model.parameters(), lr=0.0001)
     # 2022-10-30: Let's check lr = 0.001 -> 0.0001, weight_decay = 0, 0.01, 0.001, 0.0001...
     
-    scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=20, eta_min=0.0001)
+    scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=20, eta_min=0.00001)
     # scheduler = torch.optim.lr_scheduler.CosineAnnealingWarmRestarts(optimizer, T_0=10, T_mult=2, eta_min=0.0001)
     # scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='min', factor=0.1, patience=3, verbose=True, eps=1e-08)
 
     
     gc.collect()
     torch.cuda.empty_cache()
-    infer_model, infer_score = train(model, optimizer, label_train_loader, label_val_loader, criterion, scheduler, device)
-    # pseudo_model, pseudo_score = semisup_train(model, label_train_loader, unlabel_train_loader, label_val_loader, criterion, optimizer, device, scheduler)
-    print(infer_score)
-    # print(pseudo_score) 
+    # infer_model, infer_score = train(model, optimizer, label_train_loader, label_val_loader, criterion, scheduler, device)
+    pseudo_model, pseudo_score = semisup_train(model, label_train_loader, unlabel_train_loader, label_val_loader, criterion, optimizer, device, scheduler)
+    # print(infer_score)
+    print(pseudo_score) 
    

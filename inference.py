@@ -49,8 +49,8 @@ if __name__ == '__main__':
     test_dataset = MaskTestDataset(output_df, test_transform)
     test_dataloader = DataLoader(test_dataset, batch_size=32, shuffle=False, num_workers=4)
             
-    model = EfficientnetB3(num_classes=18).to(device)
-    model.load_state_dict(torch.load(os.path.join(os.getcwd(), 'Models', 'saved_model', 'model_Efficientnet-b3_0.9837217278584751_2022-10-29 17:15:55.033634.pth')))
+    model = EfficientnetB2(num_classes=18).to(device)
+    model.load_state_dict(torch.load(os.path.join(os.getcwd(), 'Models', 'saved_model', 'EfficientnetB2_best_2022-10-29 19:13:09.747048.pth')))
     model.eval()
     preds = inference(model, test_dataloader, device)
     

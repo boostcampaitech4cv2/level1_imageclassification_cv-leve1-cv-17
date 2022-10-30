@@ -5,7 +5,9 @@ import numpy as np
 import cv2
 import pandas as pd
 from PIL import Image
-import random
+# import random
+from time import time
+import multiprocessing as mp
 
 import torch
 from torch.utils.data.dataset import Dataset
@@ -137,8 +139,8 @@ if __name__ == '__main__':
     dataset = MaskTrainDataset(data_df, transform=train_transform)
     dataloader = DataLoader(dataset, batch_size=16, shuffle=True, num_workers=4)
     # print(list(iter(dataloader))[0][0].shape)
-    print(dataset.img_dir[0])
-    print(dataset.img_label[0])
+    # print(dataset.img_dir[0])
+    # print(dataset.img_label[0])
     
     # train_loader, val_loader = dataset.split_dataset() # train_loader, val_loader = Subset, Subset -> model에서 동작될려나? -> 동작됨
     # print(len(train_loader), len(val_loader))
@@ -158,4 +160,13 @@ if __name__ == '__main__':
     testset = MaskTrainDataset(test_df, transform=test_transform)
     test_loader = DataLoader(testset, batch_size=16, shuffle=False, num_workers=4)
     # print(testset.__getitem__(0))
-    print(testset.img_label[0])
+    # print(testset.img_label[0])
+    
+    for num_workers in range(2, mp.cpu_count(), 2):  
+    #    train_loader = DataLoader(train_reader,shuffle=True,num_workers=num_workers,batch_size=64,pin_memory=True)
+        start = time()
+        for epoch in range(1, 3):
+            for i, data in enumerate(dataloader, 0):
+                pass
+        end = time()
+        print("Finish with:{} second, num_workers={}".format(end - start, num_workers))
