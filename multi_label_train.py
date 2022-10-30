@@ -158,7 +158,7 @@ def train(data_dir, model_dir, args):
     optimizer = opt_module(
         filter(lambda p: p.requires_grad, model.parameters()),
         lr=args.lr,
-        weight_decay=5e-4
+        weight_decay=1e-2
     )
     scheduler = StepLR(optimizer, args.lr_decay_step, gamma=0.5)
 
@@ -221,9 +221,6 @@ def train(data_dir, model_dir, args):
                     f"training loss {train_loss:4.4} || acc {train_acc:4.2%} || mask acc {train_mask_acc:4.2%} || gen acc {train_gender_acc:4.2%} || age acc {train_age_acc:4.2%} || lr {current_lr}"
                 )
                 logger.add_scalar("Train/loss", train_loss, epoch * len(train_loader) + idx)
-                # logger.add_scalar("Train/mask_accuracy", train_mask_acc, epoch * len(train_loader) + idx)
-                # logger.add_scalar("Train/gender_accuracy", train_gender_acc, epoch * len(train_loader) + idx)
-                # logger.add_scalar("Train/age_accuracy", train_age_acc, epoch * len(train_loader) + idx)
                 wandb.log({'Train Avg Loss': train_loss, 'Train Acc': train_acc, 'Mask Acc': train_mask_acc, 'Gen Acc': train_gender_acc, 'Age Acc': train_age_acc})
                 
                 loss_value = 0
@@ -268,18 +265,16 @@ def train(data_dir, model_dir, args):
             
             val_loss = np.sum(val_loss_items) / len(val_loader)
             val_acc = np.sum(val_acc_items) / len(val_set)
-            best_val_acc = max(val_acc, best_val_acc)
-
-            if val_loss < best_val_loss:   
-                print(f"New best model for val loss : {val_acc:4.2%}! saving the best model..")
+            # best_val_acc = max(val_acc, best_val_acc)
+            best_val_loss = min(val_loss, best_val_loss)
+            if val_acc > best_val_acc:   
+                print(f"New best model for val acc : {val_acc:4.2}! saving the best model..")
                 torch.save(model.module.state_dict(), f"{save_dir}/best.pth")
-                best_val_loss = val_loss
-            torch.save(model.module.state_dict(), f"{save_dir}/last.pth")
-          
+                # best_val_loss = val_loss
+                best_val_acc = val_acc
             print(f"[Val] acc : {val_acc:4.2%} || loss: {val_loss:4.2} || best vac : {best_val_acc:4.2%} || best loss: {best_val_loss:4.4}")
             logger.add_scalar("Val/loss", val_loss, epoch)
             logger.add_scalar("Val/accuracy", val_acc, epoch)
-            # logger.add_figure("results", figure, epoch)
             print()
             wandb.log({
                     "Validation Avg Loss": val_loss,
@@ -293,16 +288,16 @@ if __name__ == '__main__':
 
     # Data and model checkpoints directories
     parser.add_argument('--seed', type=int, default=42, help='random seed (default: 444)')
-    parser.add_argument('--epochs', type=int, default=20, help='number of epochs to train (default: 20)')
+    parser.add_argument('--epochs', type=int, default=13, help='number of epochs to train (default: 20)')
     parser.add_argument('--dataset', type=str, default='MaskMultiLabelDataset', help='dataset augmentation type (default: MaskMultiLabelDataset)')
     parser.add_argument('--train_augmentation', type=str, default='MyAugmentation', help='data augmentation type')
     parser.add_argument('--val_augmentation', type=str, default='BaseAugmentation', help='data augmentation type')
-    parser.add_argument("--resize", nargs="+", type=list, default=[240, 240], help='resize size for image when training')
+    parser.add_argument("--resize", nargs="+", type=list, default=[224, 224], help='resize size for image when training')
     parser.add_argument('--batch_size', type=int, default=64, help='input batch size for training (default: 64)')
     parser.add_argument('--valid_batch_size', type=int, default=1000, help='input batch size for validing (default: 1000)')
     parser.add_argument('--model', type=str, default='ResNet34', help='model type (default: EfficientNet_B0)')
     parser.add_argument('--optimizer', type=str, default='AdamW', help='optimizer type (default: AdamW)')
-    parser.add_argument('--lr', type=float, default=1e-3, help='learning rate (default: 1e-3)')
+    parser.add_argument('--lr', type=float, default=5e-4, help='learning rate (default: 1e-3)')
     parser.add_argument('--val_ratio', type=float, default=0.2, help='ratio for validaton (default: 0.2)')
     parser.add_argument('--criterion', type=str, default='cross_entropy', help='criterion type (default: cross_entropy)')
     parser.add_argument('--criterion2', type=str, default='cross_entropy', help='criterion type (default: label_smoothing)')

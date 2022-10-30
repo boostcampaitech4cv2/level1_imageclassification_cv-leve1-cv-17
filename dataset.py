@@ -71,7 +71,7 @@ class MyAugmentation:
             cutout(mask_size=40, p=1, cutout_inside =False),
             Resize(resize, Image.BILINEAR),
             ToTensor(),
-            Normalize(mean=mean, std=std),
+            Normalize(mean=mean, std=std)
         ])
 
     def __call__(self, image):

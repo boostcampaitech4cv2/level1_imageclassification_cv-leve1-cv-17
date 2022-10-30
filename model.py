@@ -41,7 +41,10 @@ class EfficientNet_B0(nn.Module):
         super().__init__()
 
         self.model = models.efficientnet_b0(weights=models.EfficientNet_B0_Weights.DEFAULT)
-        self.model.classifier[1] = nn.Linear(1280, num_classes)
+        self.model.classifier = nn.Sequential(
+            nn.Dropout(p=0.5, inplace=True),
+            nn.Linear(1280, num_classes, bias=True)
+        )
         
         self.name = "EfficientNet_B0"
 
@@ -60,7 +63,10 @@ class EfficientNet_B1(nn.Module):
         super().__init__()
 
         self.model = models.efficientnet_b1(weights=models.EfficientNet_B1_Weights.DEFAULT)
-        self.model.classifier[1] = nn.Linear(1280, num_classes)
+        self.model.classifier = nn.Sequential(
+            nn.Dropout(p=0.8, inplace=True),
+            nn.Linear(1280, num_classes, bias=True)
+        )
         
         self.name = "EfficientNet_B1"
 
@@ -79,7 +85,10 @@ class EfficientNet_B2(nn.Module):
         super().__init__()
 
         self.model = models.efficientnet_b2(weights=models.EfficientNet_B2_Weights.DEFAULT)
-        self.model.classifier[1] = nn.Linear(1280, num_classes)
+        self.model.classifier = nn.Sequential(
+            nn.Dropout(p=0.5, inplace=True),
+            nn.Linear(1408, num_classes, bias=True)
+        )
         
         self.name = "EfficientNet_B2"
 
@@ -97,13 +106,13 @@ class ResNet18(nn.Module):
     def __init__(self, num_classes):
         super().__init__()
         self.model = models.resnet18(weights=models.ResNet18_Weights.DEFAULT)
-            self.model.fc = torch.nn.Linear(in_features=512, out_features= num_classes, bias=True)
-            torch.nn.init.kaiming_uniform_(self.model.fc.weight, nonlinearity='relu')
-            stdv = 1/np.sqrt(512)
-            self.model.fc.bias.data.uniform_(-stdv, stdv)
+        self.model.fc = torch.nn.Linear(in_features=512, out_features= num_classes, bias=True)
+        torch.nn.init.kaiming_uniform_(self.model.fc.weight, nonlinearity='relu')
+        stdv = 1/np.sqrt(512)
+        self.model.fc.bias.data.uniform_(-stdv, stdv)
 
-        def forward(self, x):
-            return self.model(x)
+    def forward(self, x):
+        return self.model(x)
 
 class ResNet34(nn.Module):
     def __init__(self, num_classes):
@@ -117,7 +126,7 @@ class ResNet34(nn.Module):
     def forward(self, x):
         return self.model(x)
 
-class ResNet34(nn.Module):
+class ResNet50(nn.Module):
     def __init__(self, num_classes):
         super().__init__()
         self.model = models.resnet50(weights=models.ResNet50_Weights.DEFAULT)
