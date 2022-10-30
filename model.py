@@ -1,6 +1,8 @@
+import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import torchvision.models as models
+import numpy as np
 
 class BaseModel(nn.Module):
     def __init__(self, num_classes):
@@ -38,121 +40,91 @@ class EfficientNet_B0(nn.Module):
     def __init__(self, num_classes):
         super().__init__()
 
-        self.backbone = models.efficientnet_b0(weights=models.EfficientNet_B0_Weights.DEFAULT)
-        self.classifier = nn.Linear(1000, num_classes)
+        self.model = models.efficientnet_b0(weights=models.EfficientNet_B0_Weights.DEFAULT)
+        self.model.classifier[1] = nn.Linear(1280, num_classes)
         
         self.name = "EfficientNet_B0"
 
         self.init_params()
-        
+
     def forward(self, x):
-        x = self.backbone(x)
-        x = F.relu(x)
-        x = self.classifier(x)
+        x = self.model(x)       
         return x
 
     def init_params(self):
-        nn.init.kaiming_uniform_(self.classifier.weight)
-        nn.init.zeros_(self.classifier.bias)
+        nn.init.kaiming_uniform_(self.model.classifier[1].weight)
+        nn.init.zeros_(self.model.classifier[1].bias)
 
 class EfficientNet_B1(nn.Module):
     def __init__(self, num_classes):
         super().__init__()
 
-        self.backbone = models.efficientnet_b1(weights=models.EfficientNet_B1_Weights.DEFAULT)
-        self.classifier = nn.Linear(1000, num_classes)
-
+        self.model = models.efficientnet_b1(weights=models.EfficientNet_B1_Weights.DEFAULT)
+        self.model.classifier[1] = nn.Linear(1280, num_classes)
+        
         self.name = "EfficientNet_B1"
 
         self.init_params()
 
     def forward(self, x):
-        x = self.backbone(x)
-        x = F.relu(x)
-        x = self.classifier(x)
+        x = self.model(x)      
         return x
 
     def init_params(self):
-        nn.init.kaiming_uniform_(self.classifier.weight)
-        nn.init.zeros_(self.classifier.bias)
+        nn.init.kaiming_uniform_(self.model.classifier[1].weight)
+        nn.init.zeros_(self.model.classifier[1].bias)
 
 class EfficientNet_B2(nn.Module):
     def __init__(self, num_classes):
         super().__init__()
 
-        self.backbone = models.efficientnet_b2(weights=models.EfficientNet_B2_Weights.DEFAULT)
-        self.classifier = nn.Linear(1000, num_classes)
-
+        self.model = models.efficientnet_b2(weights=models.EfficientNet_B2_Weights.DEFAULT)
+        self.model.classifier[1] = nn.Linear(1280, num_classes)
+        
         self.name = "EfficientNet_B2"
 
         self.init_params()
 
     def forward(self, x):
-        x = self.backbone(x)
-        x = F.relu(x)
-        x = self.classifier(x)
+        x = self.model(x)     
         return x
 
     def init_params(self):
-        nn.init.kaiming_uniform_(self.classifier.weight)
-        nn.init.zeros_(self.classifier.bias)
+        nn.init.kaiming_uniform_(self.model.classifier[1].weight)
+        nn.init.zeros_(self.model.classifier[1].bias)
 
 class ResNet18(nn.Module):
     def __init__(self, num_classes):
         super().__init__()
-        self.backbone = models.resnet18(weights=models.ResNet18_Weights.DEFAULT)
-        self.classifier = nn.Linear(1000, num_classes)
+        self.model = models.resnet18(weights=models.ResNet18_Weights.DEFAULT)
+            self.model.fc = torch.nn.Linear(in_features=512, out_features= num_classes, bias=True)
+            torch.nn.init.kaiming_uniform_(self.model.fc.weight, nonlinearity='relu')
+            stdv = 1/np.sqrt(512)
+            self.model.fc.bias.data.uniform_(-stdv, stdv)
 
-        self.name = "ResNet18"
-
-        self.init_params()
-
-    def forward(self, x):
-        x = self.backbone(x)
-        x = F.relu(x)
-        x = self.classifier(x)
-        return x
-
-    def init_params(self):
-        nn.init.kaiming_uniform_(self.classifier.weight)
-        nn.init.zeros_(self.classifier.bias)
+        def forward(self, x):
+            return self.model(x)
 
 class ResNet34(nn.Module):
     def __init__(self, num_classes):
         super().__init__()
-        self.backbone = models.resnet34(weights=models.ResNet34_Weights.DEFAULT)
-        self.classifier = nn.Linear(1000, num_classes)
-
-        self.name = "ResNet34"
-
-        self.init_params()
+        self.model = models.resnet34(weights=models.ResNet34_Weights.DEFAULT)
+        self.model.fc = torch.nn.Linear(in_features=512, out_features= num_classes, bias=True)
+        torch.nn.init.kaiming_uniform_(self.model.fc.weight, nonlinearity='relu')
+        stdv = 1/np.sqrt(512)
+        self.model.fc.bias.data.uniform_(-stdv, stdv)
 
     def forward(self, x):
-        x = self.backbone(x)
-        x = F.relu(x)
-        x = self.classifier(x)
-        return x
+        return self.model(x)
 
-    def init_params(self):
-        nn.init.kaiming_uniform_(self.classifier.weight)
-        nn.init.zeros_(self.classifier.bias)
-
-class ResNet50(nn.Module):
+class ResNet34(nn.Module):
     def __init__(self, num_classes):
         super().__init__()
-        self.backbone = models.resnet50(weights=models.ResNet50_Weights.DEFAULT)
-        self.classifier = nn.Linear(1000, num_classes)
-
-        self.name = "ResNet50"
-
-        self.init_params()
+        self.model = models.resnet50(weights=models.ResNet50_Weights.DEFAULT)
+        self.model.fc = torch.nn.Linear(in_features=512, out_features= num_classes, bias=True)
+        torch.nn.init.kaiming_uniform_(self.model.fc.weight, nonlinearity='relu')
+        stdv = 1/np.sqrt(512)
+        self.model.fc.bias.data.uniform_(-stdv, stdv)
 
     def forward(self, x):
-        x = self.backbone(x)
-        x = F.relu(x)
-        x = self.classifier(x)
-        return x
-
-    def init_params(self):
-        nn.init.kaiming_uniform_(self.classifier.weight)
-        nn.init.zeros_(self.classifier.bias)
+        return self.model(x)
