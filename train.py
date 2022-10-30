@@ -100,6 +100,7 @@ def train(data_dir, model_dir, args):
     # save_dir = increment_path(os.path.join(model_dir, args.name))
     args.experiment_name = "_".join(args.experiment_name.split(" "))
     save_dir = increment_path(os.path.join(model_dir, args.experiment_name))
+    print(f"Model saved to {save_dir}")
 
     # -- settings
     use_cuda = torch.cuda.is_available()
