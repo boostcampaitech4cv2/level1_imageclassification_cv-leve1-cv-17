@@ -58,10 +58,10 @@ class AddGaussianNoise(object):
 
 
 class CustomAugmentation:
-    def __init__(self, resize, mean, std, **args):
+    def __init__(self, resize, crop_size, mean, std, **args):
         self.transform = Compose(
             [
-                # CenterCrop((320, 256)),
+                # CenterCrop(crop_size),
                 Resize(resize, Image.BILINEAR),
                 # ColorJitter(0.1, 0.1, 0.1, 0.1),
                 F.adjust_sharpness(),
@@ -75,9 +75,9 @@ class CustomAugmentation:
         return self.transform(image)
 
 class CustomAugmentation2:
-    def __init__(self, resize, mean, std, **args):
+    def __init__(self, resize, crop_size, mean, std, **args):
         self.transform = Compose([
-            CenterCrop((320, 256)),
+            CenterCrop(crop_size),
             cutout(mask_size=40, p=1, cutout_inside =False),
             Resize(resize, Image.BILINEAR),
             ToTensor(),
