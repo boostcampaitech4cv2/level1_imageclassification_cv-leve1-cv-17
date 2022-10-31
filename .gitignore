@@ -194,3 +194,5 @@ dataset/*
 *.pth
 models/*
 
+data_processing/
+code/
