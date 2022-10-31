@@ -29,7 +29,7 @@ train:
     - 0.25
     - 0.5
   scheduler: "StepLR"
-  project: "mask_classification"
+  project: "mask_cls"
   entity: "cv17"
 valid:
   batch_size: 1000 # "input batch size for validing (default: 1000)"
