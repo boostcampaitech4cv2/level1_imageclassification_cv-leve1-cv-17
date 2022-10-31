@@ -86,7 +86,7 @@ def train(data_dir, model_dir, args):
     num_classes = dataset.num_classes  # 3 + 2 + 3
 
     # -- augmentation
-    transform_module = getattr(import_module("dataset"), args.train_augmentation)  # CustomAugmentation
+    transform_module = getattr(import_module("dataset"), args.augmentation)  # CustomAugmentation
     transform = transform_module(resize=args.resize, mean=dataset.mean, std=dataset.std,)
     dataset.set_transform(transform)
 
@@ -117,8 +117,8 @@ def train(data_dir, model_dir, args):
         optimizer = opt_module(
         filter(lambda p: p.requires_grad, model.parameters()), lr=args.lr, weight_decay=1e-2
         )
-        # scheduler = StepLR(optimizer, args.lr_decay_step, gamma=0.5)
-        scheduler = CosineAnnealingLR(optimizer, 5)
+        scheduler = StepLR(optimizer, args.lr_decay_step, gamma=0.5)
+        # scheduler = CosineAnnealingLR(optimizer, 5)
 
         best_val_loss = np.inf
         best_val_acc = 0
@@ -156,7 +156,7 @@ def train(data_dir, model_dir, args):
 
                 # weighted loss
                 loss_list = [mask_loss, gender_loss, age_loss]
-                weight_list = [0.2, 0.3, 0.5]
+                weight_list = [0.25, 0.25, 0.5]
                 loss = weighted_loss(loss_list, weight_list)
 
                 loss.backward()
@@ -183,7 +183,7 @@ def train(data_dir, model_dir, args):
                     logger.add_scalar("Train/accuracy", train_acc, epoch * len(train_loader) + idx)
 
                     # wandb
-                    wandb.log({'Train Avg Loss': train_loss, 'Train Acc': train_acc, 'Mask Acc': train_mask_acc, 'Gen Acc': train_gender_acc, 'Age Acc': train_age_acc})
+                    # wandb.log({'Train Avg Loss': train_loss, 'Train Acc': train_acc, 'Mask Acc': train_mask_acc, 'Gen Acc': train_gender_acc, 'Age Acc': train_age_acc})
                 
                     loss_value = 0
                     matches = 0
@@ -226,29 +226,29 @@ def train(data_dir, model_dir, args):
 
                     # weighted loss
                     loss_list = [mask_loss, gender_loss, age_loss]
-                    weight_list = [0.2, 0.3, 0.5]
+                    weight_list = [0.25, 0.25, 0.5]
                     loss = weighted_loss(loss_list, weight_list)
 
                     loss_item = loss.item()
                     matches = torch.all((preds == labels), dim=1).sum().item()
                 
-                val_loss_items.append(loss_item)
-                val_acc_items.append(matches)
-                # val_f1 = competition_metric(true_labels, model_preds)
+                    val_loss_items.append(loss_item)
+                    val_acc_items.append(matches)
+                    # val_f1 = competition_metric(true_labels, model_preds)
 
-                model_preds += preds.argmax(1).detach().cpu().numpy().tolist()
-                true_labels += labels.detach().cpu().numpy().tolist()
+                    model_preds += preds.argmax(1).detach().cpu().numpy().tolist()
+                    true_labels += labels.detach().cpu().numpy().tolist()
 
                 val_loss = np.sum(val_loss_items) / len(val_loader)
                 val_acc = np.sum(val_acc_items) / len_val_set
                 # val_f1 = competition_metric(true_labels, model_preds)
 
-                best_val_loss = min(best_val_loss, val_loss)
-                if val_acc > best_val_acc:
-                    print(f"New best model for val accuracy : {val_acc:4.2%}! saving the best model..")
-                    torch.save(model.module.state_dict(), f"{save_dir}/best.pth")
-                    best_val_acc = val_acc
-                torch.save(model.module.state_dict(), f"{save_dir}/last.pth")
+                best_val_acc = max(best_val_acc, val_acc)
+                if val_loss < best_val_loss:
+                    print(f"New best model for val accuracy : {val_loss:4.2}! saving the best model..")
+                    torch.save(model.module.state_dict(), f"{save_dir}/best_{i}.pth")
+                    best_val_loss = val_loss
+                
                 print(
                     f"[Val] acc : {val_acc:4.2%}, loss: {val_loss:4.2} || "
                     f"best acc : {best_val_acc:4.2%}, best loss: {best_val_loss:4.2}"
@@ -260,7 +260,7 @@ def train(data_dir, model_dir, args):
                 print()
 
                 # wandb
-                wandb.log({"Validation Accuracy": val_acc, "Validation Avg Loss": val_loss})
+                # wandb.log({"Validation Accuracy": val_acc, "Validation Avg Loss": val_loss})
 
 
 
@@ -276,11 +276,11 @@ if __name__ == "__main__":
     data_dir = args.data_dir
     model_dir = args.model_dir
 
-    wandb.init(
-        project="mask_classification", entity="lylajeon", name=args.experiment_name, config=args,
-    )
+    # wandb.init(
+    #     project=args.project, entity=args.entity, name=args.experiment_name, config=args,
+    # )
 
     train(data_dir, model_dir, args)
 
-    wandb.finish()
+    # wandb.finish()
 

@@ -326,9 +326,12 @@ class MaskSplitByProfileDataset(MaskBaseDataset):
 class TestDataset(Dataset):
     def __init__(self, img_paths, resize, mean=(0.548, 0.504, 0.479), std=(0.237, 0.247, 0.246)):
         self.img_paths = img_paths
-        self.transform = Compose(
-            [Resize(resize, Image.BILINEAR), ToTensor(), Normalize(mean=mean, std=std),]
-        )
+        self.transform = Compose([
+            CenterCrop((320, 256)),
+            Resize(resize, Image.BILINEAR), 
+            ToTensor(), 
+            Normalize(mean=mean, std=std),
+        ])
 
     def __getitem__(self, index):
         image = Image.open(self.img_paths[index])
@@ -369,7 +372,7 @@ def getDataloader(dataset, train_idx, valid_idx, batch_size, valid_batch_size, n
         train_set,
         batch_size=batch_size,
         num_workers=num_workers,
-        drop_last=True,
+        drop_last=False,
         shuffle=True,
         pin_memory=use_cuda,
     )
@@ -378,7 +381,7 @@ def getDataloader(dataset, train_idx, valid_idx, batch_size, valid_batch_size, n
         val_set,
         batch_size=valid_batch_size,
         num_workers=num_workers,
-        drop_last=True,
+        drop_last=False,
         shuffle=False,
         pin_memory=use_cuda
     )

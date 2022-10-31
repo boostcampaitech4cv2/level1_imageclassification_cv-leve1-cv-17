@@ -134,7 +134,7 @@ def train(data_dir, model_dir, args):
         num_workers=multiprocessing.cpu_count() // 2,
         shuffle=True,
         pin_memory=use_cuda,
-        drop_last=True,
+        drop_last=False,
     )
 
     val_loader = DataLoader(
@@ -143,7 +143,7 @@ def train(data_dir, model_dir, args):
         num_workers=multiprocessing.cpu_count() // 2,
         shuffle=False,
         pin_memory=use_cuda,
-        drop_last=True,
+        drop_last=False,
     )
 
     # -- model
@@ -161,8 +161,8 @@ def train(data_dir, model_dir, args):
     optimizer = opt_module(
         filter(lambda p: p.requires_grad, model.parameters()), lr=args.lr, weight_decay=5e-4
     )
-    # scheduler = StepLR(optimizer, args.lr_decay_step, gamma=0.5)
-    scheduler = CosineAnnealingLR(optimizer, 5)
+    scheduler = StepLR(optimizer, args.lr_decay_step, gamma=0.5)
+    # scheduler = CosineAnnealingLR(optimizer, 5)
 
     # -- logging
     logger = SummaryWriter(log_dir=save_dir)
@@ -225,13 +225,13 @@ def train(data_dir, model_dir, args):
                 current_lr = get_lr(optimizer)
                 print(
                     f"Epoch[{epoch}/{args.epochs}]({idx + 1}/{len(train_loader)}) || "
-                    f"training loss {train_loss:4.4} || training accuracy {train_acc:4.2%} || lr {current_lr}"
+                    f"training loss {train_loss:4.4} || training accuracy {train_acc:4.2%} || mask acc {train_mask_acc:4.2%} || gen acc {train_gender_acc:4.2%} || age acc {train_age_acc:4.2%} ||lr {current_lr}"
                 )
                 logger.add_scalar("Train/loss", train_loss, epoch * len(train_loader) + idx)
                 logger.add_scalar("Train/accuracy", train_acc, epoch * len(train_loader) + idx)
 
                 # wandb
-                wandb.log({'Train Avg Loss': train_loss, 'Train Acc': train_acc, 'Mask Acc': train_mask_acc, 'Gen Acc': train_gender_acc, 'Age Acc': train_age_acc})
+                # wandb.log({'Train Avg Loss': train_loss, 'Train Acc': train_acc, 'Mask Acc': train_mask_acc, 'Gen Acc': train_gender_acc, 'Age Acc': train_age_acc})
 
                 loss_value = 0
                 matches = 0
@@ -274,7 +274,7 @@ def train(data_dir, model_dir, args):
 
                 # weighted loss
                 loss_list = [mask_loss, gender_loss, age_loss]
-                weight_list = [0.2, 0.3, 0.5]
+                weight_list = [0.25, 0.25, 0.5]
                 loss = weighted_loss(loss_list, weight_list)
 
                 loss_item = loss.item()
@@ -306,7 +306,7 @@ def train(data_dir, model_dir, args):
             print()
 
             # wandb
-            wandb.log({"Validation Accuracy": val_acc, "Validation Avg Loss": val_loss})
+            # wandb.log({"Validation Accuracy": val_acc, "Validation Avg Loss": val_loss})
 
 
 if __name__ == "__main__":
@@ -321,10 +321,10 @@ if __name__ == "__main__":
     data_dir = args.data_dir
     model_dir = args.model_dir
 
-    wandb.init(
-        project="mask_classification", entity="lylajeon", name=args.experiment_name, config=args,
-    )
+    # wandb.init(
+    #     project=args.project, entity=args.entity, name=args.experiment_name, config=args,
+    # )
 
     train(data_dir, model_dir, args)
 
-    wandb.finish()
+    # wandb.finish()
