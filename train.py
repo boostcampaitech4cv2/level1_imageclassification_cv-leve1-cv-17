@@ -281,8 +281,10 @@ def train(data_dir, model_dir, args):
             val_acc_items = []
             figure = None
 
-            model_preds = []
-            true_labels = []
+            model_preds, true_labels = [], []
+            mask_preds, true_mask_labels = [], []
+            gen_preds, true_gen_labels = [], []
+            age_preds, true_age_labels = [], []
 
             for val_batch in val_loader:
                 inputs, (mask_labels, gender_labels, age_labels) = val_batch
