@@ -9,7 +9,8 @@ import torch
 from PIL import Image
 from torch.utils.data import Dataset, Subset, random_split
 from torchvision.transforms import Resize, ToTensor, Normalize, Compose, CenterCrop, ColorJitter
-import torchvision.transforms.functional as TF
+import torchvision.transforms.functional as F
+from utils.Cutout import cutout
 
 IMG_EXTENSIONS = [
     ".jpg",
@@ -57,13 +58,13 @@ class AddGaussianNoise(object):
 
 
 class CustomAugmentation:
-    def __init__(self, resize, mean, std, **args):
+    def __init__(self, resize, crop_size, mean, std, **args):
         self.transform = Compose(
             [
-                # CenterCrop((320, 256)),
+                # CenterCrop(crop_size),
                 Resize(resize, Image.BILINEAR),
                 # ColorJitter(0.1, 0.1, 0.1, 0.1),
-                # TF.adjust_sharpness(),
+                F.adjust_sharpness(),
                 ToTensor(),
                 Normalize(mean=mean, std=std),
                 # AddGaussianNoise()
@@ -73,6 +74,18 @@ class CustomAugmentation:
     def __call__(self, image):
         return self.transform(image)
 
+class CustomAugmentation2:
+    def __init__(self, resize, crop_size, mean, std, **args):
+        self.transform = Compose([
+            CenterCrop(crop_size),
+            cutout(mask_size=40, p=0.5, cutout_inside =False),
+            Resize(resize, Image.BILINEAR),
+            ToTensor(),
+            Normalize(mean=mean, std=std)
+        ])
+
+    def __call__(self, image):
+        return self.transform(image)
 
 class MaskLabels(int, Enum):
     MASK = 0
@@ -319,7 +332,7 @@ class TestDataset(Dataset):
     def __init__(self, img_paths, resize, mean=(0.548, 0.504, 0.479), std=(0.237, 0.247, 0.246)):
         self.img_paths = img_paths
         self.transform = Compose(
-            [ToTensor(), Normalize(mean=mean, std=std),]
+            [Resize(resize, Image.BILINEAR), ToTensor(), Normalize(mean=mean, std=std),]
         )
 
     def __getitem__(self, index):
@@ -347,9 +360,3 @@ class MaskMultiLabelDataset(MaskSplitByProfileDataset):
 
         image_transform = self.transform(image)
         return image_transform, (mask_label, gender_label, age_label)
-
-
-
-
-if __name__ == '__main__':
-    pass
