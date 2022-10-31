@@ -50,6 +50,13 @@ class MaskDataset_mh(Dataset):
         image = cv2.imread(image_path)
         image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
 
+        # l, a, b = cv2.split(image)
+        # clahe = cv2.createCLAHE(clipLimit=3.0, tileGridSize=(8, 8))
+        # cl = clahe.apply(l)
+
+        # limg = cv2.merge((cl, a, b))
+        # image = cv2.cvtColor(limg, cv2.COLOR_LAB2RGB)
+
         if self.transform != None:
             image = self.transform(image)
 
