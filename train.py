@@ -94,6 +94,13 @@ def competition_metric(true, pred):
     return f1_score(true, pred, average="macro")
 
 
+def weighted_loss(loss_list, weight_list):
+    weighted_loss = 0
+    for idx, loss in enumerate(loss_list):
+        weighted_loss += loss * weight_list[idx]
+    return weighted_loss
+
+
 def train(data_dir, model_dir, args):
     seed_everything(args.seed)
 
@@ -189,16 +196,16 @@ def train(data_dir, model_dir, args):
             gender_loss = criterion(gender_outs, gender_labels)
             age_loss = criterion(age_outs, age_labels)
 
-            loss = mask_loss * 0.2 + gender_loss * 0.3 + age_loss * 0.5
+            # weighted loss
+            loss_list = [mask_loss, gender_loss, age_loss]
+            weight_list = [0.2, 0.3, 0.5]
+            loss = weighted_loss(loss_list, weight_list)
 
             loss.backward()
             optimizer.step()
 
             loss_value += loss.item()
             matches += torch.all((preds == labels), dim=1).sum().item()
-            # matches += (mask_outs == mask_labels).sum().item()
-            # matches += (gender_outs == gender_labels).sum().item()
-            # matches += (age_outs == age_labels).sum().item()
 
             if (idx + 1) % args.log_interval == 0:
                 train_loss = loss_value / args.log_interval
@@ -250,9 +257,10 @@ def train(data_dir, model_dir, args):
                 gender_loss = criterion(gender_outs, gender_labels)
                 age_loss = criterion(age_outs, age_labels)
 
-                loss = mask_loss * 0.2 + gender_loss * 0.3 + age_loss * 0.5
-
-                # preds = torch.argmax(outs, dim=-1)
+                # weighted loss
+                loss_list = [mask_loss, gender_loss, age_loss]
+                weight_list = [0.2, 0.3, 0.5]
+                loss = weighted_loss(loss_list, weight_list)
 
                 loss_item = loss.item()
                 acc_item = torch.all((preds == labels), dim=1).sum().item()
