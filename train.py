@@ -114,9 +114,9 @@ def train(data_dir, model_dir, args):
     device = torch.device("cuda" if use_cuda else "cpu")
 
     # -- dataset
-    dataset_module = getattr(import_module("dataset"), args.dataset)  # default: MaskBaseDataset
+    dataset_module = getattr(import_module("dataset"), args.dataset)  # default: MaskSplitByProfileDataset
     dataset = dataset_module(data_dir=data_dir,)
-    num_classes = dataset.num_classes  # 18
+    num_classes = dataset.num_classes  # 3 + 2 + 3
 
     # -- augmentation
     transform_module = getattr(
@@ -154,7 +154,9 @@ def train(data_dir, model_dir, args):
     model = torch.nn.DataParallel(model)
 
     # -- loss & metric
-    criterion = create_criterion(args.criterion)  # default: cross_entropy
+    criterion1 = create_criterion(args.criterion1)  # default: cross_entropy
+    criterion2 = create_criterion(args.criterion2) # label_smoothing
+    criterion3 = create_criterion(args.criterion3) # focal
     opt_module = getattr(import_module("torch.optim"), args.optimizer)  # default: SGD
     optimizer = opt_module(
         filter(lambda p: p.requires_grad, model.parameters()), lr=args.lr, weight_decay=5e-4
@@ -174,13 +176,17 @@ def train(data_dir, model_dir, args):
         model.train()
         loss_value = 0
         matches = 0
+        mask_matches, gender_matches, age_matches = 0, 0, 0
+
         for idx, train_batch in enumerate(train_loader):
             inputs, (mask_labels, gender_labels, age_labels) = train_batch
             inputs = inputs.to(device)
+
             mask_labels = mask_labels.to(device)
             gender_labels = gender_labels.to(device)
             age_labels = age_labels.to(device)
             labels = torch.stack((mask_labels, gender_labels, age_labels), dim=1)
+            labels = labels.to(device)
 
             optimizer.zero_grad()
 
@@ -192,9 +198,9 @@ def train(data_dir, model_dir, args):
             preds_age = torch.argmax(age_outs, dim=-1)
             preds = torch.stack((preds_mask, preds_gender, preds_age), dim=1)
 
-            mask_loss = criterion(mask_outs, mask_labels)
-            gender_loss = criterion(gender_outs, gender_labels)
-            age_loss = criterion(age_outs, age_labels)
+            mask_loss = criterion1(mask_outs, mask_labels)
+            gender_loss = criterion2(gender_outs, gender_labels)
+            age_loss = criterion3(age_outs, age_labels)
 
             # weighted loss
             loss_list = [mask_loss, gender_loss, age_loss]
@@ -206,10 +212,16 @@ def train(data_dir, model_dir, args):
 
             loss_value += loss.item()
             matches += torch.all((preds == labels), dim=1).sum().item()
+            mask_matches += (preds_mask == mask_labels).sum().item()
+            gender_matches += (preds_gender == gender_labels).sum().item()
+            age_matches += (preds_age == age_labels).sum().item()
 
             if (idx + 1) % args.log_interval == 0:
                 train_loss = loss_value / args.log_interval
                 train_acc = matches / args.batch_size / args.log_interval
+                train_mask_acc = mask_matches / args.batch_size / args.log_interval
+                train_gender_acc = gender_matches / args.batch_size / args.log_interval
+                train_age_acc = age_matches / args.batch_size / args.log_interval
                 current_lr = get_lr(optimizer)
                 print(
                     f"Epoch[{epoch}/{args.epochs}]({idx + 1}/{len(train_loader)}) || "
@@ -219,10 +231,11 @@ def train(data_dir, model_dir, args):
                 logger.add_scalar("Train/accuracy", train_acc, epoch * len(train_loader) + idx)
 
                 # wandb
-                wandb.log({"Train Accuracy": train_acc, "Train Avg Loss": train_loss})
+                wandb.log({'Train Avg Loss': train_loss, 'Train Acc': train_acc, 'Mask Acc': train_mask_acc, 'Gen Acc': train_gender_acc, 'Age Acc': train_age_acc})
 
                 loss_value = 0
                 matches = 0
+                mask_matches, gender_matches, age_matches = 0, 0, 0
 
         scheduler.step()
 
@@ -240,10 +253,12 @@ def train(data_dir, model_dir, args):
             for val_batch in val_loader:
                 inputs, (mask_labels, gender_labels, age_labels) = val_batch
                 inputs = inputs.to(device)
+
                 mask_labels = mask_labels.to(device)
                 gender_labels = gender_labels.to(device)
                 age_labels = age_labels.to(device)
                 labels = torch.stack((mask_labels, gender_labels, age_labels), dim=1)
+                labels = labels.to(device)
 
                 outs = model(inputs)
                 (mask_outs, gender_outs, age_outs) = torch.split(outs, [3, 2, 3], dim=1)
@@ -253,9 +268,9 @@ def train(data_dir, model_dir, args):
                 preds_age = torch.argmax(age_outs, dim=-1)
                 preds = torch.stack((preds_mask, preds_gender, preds_age), dim=1)
 
-                mask_loss = criterion(mask_outs, mask_labels)
-                gender_loss = criterion(gender_outs, gender_labels)
-                age_loss = criterion(age_outs, age_labels)
+                mask_loss = criterion1(mask_outs, mask_labels)
+                gender_loss = criterion2(gender_outs, gender_labels)
+                age_loss = criterion3(age_outs, age_labels)
 
                 # weighted loss
                 loss_list = [mask_loss, gender_loss, age_loss]
@@ -263,16 +278,9 @@ def train(data_dir, model_dir, args):
                 loss = weighted_loss(loss_list, weight_list)
 
                 loss_item = loss.item()
-                acc_item = torch.all((preds == labels), dim=1).sum().item()
+                matches = torch.all((preds == labels), dim=1).sum().item()
                 val_loss_items.append(loss_item)
-                val_acc_items.append(acc_item)
-
-                # if figure is None:
-                #     inputs_np = torch.clone(inputs).detach().cpu().permute(0, 2, 3, 1).numpy()
-                #     inputs_np = dataset_module.denormalize_image(inputs_np, dataset.mean, dataset.std)
-                #     figure = grid_image(
-                #         inputs_np, labels, preds, n=16, shuffle=args.dataset != "MaskSplitByProfileDataset"
-                #     )
+                val_acc_items.append(matches)
 
                 model_preds += preds.argmax(1).detach().cpu().numpy().tolist()
                 true_labels += labels.detach().cpu().numpy().tolist()
