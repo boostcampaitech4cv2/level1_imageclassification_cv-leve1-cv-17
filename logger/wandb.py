@@ -12,8 +12,9 @@ def init_wandb(config : dict):
         "optimizer": config.optimizer,
         "loss": config.loss,
         "split_rate": config.split_rate,
-        "scheduler": "ReduceLROnPlateau",
+        "scheduler": config.scheduler,
         "image_size": config.image_size,
+        "crop_size": config.crop_size,
         "mean": config.mean,
         "std": config.std
         }

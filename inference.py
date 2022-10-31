@@ -14,19 +14,22 @@ if __name__ == "__main__":
         'image_root_path': "/opt/ml/input/data/eval/images",
         'data_csv_path': '/opt/ml/input/data/eval/info.csv',
         'batch_size': 64,
+        'learning_rate': 1e-3,
         'Train_type': ("Train", "Validation", "Test"),
-        'model_name': "EfficientNet_b1",
+        'model_name': "EfficientNet_b0",
         'seed': 41,
         'image_size': (512, 384),
+        'crop_size': (298, 224),
         'desc': 'Normalize_FL_b1',
         'mean': [0.548, 0.504, 0.479],  ## mask: [0.558, 0.512, 0.478], imageNet: [0.485, 0.456, 0.406], baseline: [0.548, 0.504, 0.479]
         'std': [0.237, 0.247, 0.246],   ## mask: [0.218, 0.238, 0.252], imageNet: [0.229, 0.224, 0.225], baseline: [0.237, 0.247, 0.246]
-        'checkpoint_path': '/opt/ml/code/runs/2022-10-27-084832-EfficientNet_b1-Normalize_FL_b1_BM'
+        'checkpoint_path': '/opt/ml/code/runs/2022-10-28-014424-EfficientNet_b0-FL_b0_BN_CCrop'
     })
 
     transforms = transforms.Compose([
         transforms.ToPILImage(),
         transforms.Resize(config.image_size),
+        transforms.CenterCrop(config.crop_size),
         transforms.ToTensor(),
         transforms.Normalize(config.mean, config.std)  
     ])  
@@ -44,7 +47,7 @@ if __name__ == "__main__":
 
     test_dataloader = DataLoader(test_dataset, config.batch_size, shuffle=False, num_workers=4, drop_last=False)
     model = create_model(config.model_name)
-    optimizer = torch.optim.Adam(model.parameters())
+    optimizer = torch.optim.AdamW(model.parameters(), lr=config.learning_rate)
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
     model.to(device)
