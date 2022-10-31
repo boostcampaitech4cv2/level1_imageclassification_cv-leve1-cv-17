@@ -194,6 +194,8 @@ wandb/*
 *.csv
 dataset/*
 *.pth
+model/*
+output/
 models/*
 
 EDA/EDA.ipynb_copy.ipynb

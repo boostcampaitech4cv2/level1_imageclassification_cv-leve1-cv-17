@@ -1,32 +1,42 @@
 train:
-  experiment_name: "InceptionResnet smooth"
-  augmentation: BaseAugmentation # "data augmentation type (default: BaseAugmentation)"
-  batch_size: 256 # "input batch size for training (default: 64)"
-  criterion1: label_smoothing # "criterion type (default: cross_entropy)"
-  criterion2: label_smoothing # "criterion type (default: cross_entropy)"
-  criterion3: label_smoothing # "criterion type (default: cross_entropy)"
-  data_dir: /home/ubuntu/yj_study/baseline_v2/dataset/train/images # null
+  experiment_name: "Efficientnet_b1 smooth"
+  augmentation: CustomAugmentation2 # "data augmentation type (default: BaseAugmentation)"
+  batch_size: 64 # "input batch size for training (default: 64)"
+  criterion1: cross_entropy # "criterion type (default: cross_entropy)"
+  criterion2: cross_entropy # "criterion type (default: cross_entropy)"
+  criterion3: focal # "criterion type (default: cross_entropy)"
+  data_dir: /opt/ml/input/data/train/images # null
   dataset: MaskMultiLabelDataset # "dataset augmentation type (default: MaskBaseDataset)"
-  epochs: 10 # "number of epochs to train (default: 1)"
+  epochs: 15 # "number of epochs to train (default: 1)"
   log_interval: 20 # "how many batches to wait before logging training status"
-  lr: 0.0005 # "learning rate (default: 1e-3)"
-  lr_decay_step: 20 # "learning rate scheduler decay step (default: 20)"
-  model: InceptionResnet # "model type (default: BaseModel)"
-  model_dir: /home/ubuntu/yj_study/baseline_v2/models # null
+  lr: 0.001 # "learning rate (default: 1e-3)"
+  lr_decay_step: 5 # "learning rate scheduler decay step (default: 20)"
+  model: Efficientnet_b1 # "model type (default: BaseModel)"
+  model_dir: ./model # null
   name: exp # "model save at {SM_MODEL_DIR}/{name}"
   optimizer: AdamW # null
   resize: # "resize size for image when training"
-    - 384
-    - 512
-  seed: 41 # "random seed (default: 42)"
+    - 240
+    - 240
+  crop_size:
+    - 320
+    - 256
+  seed: 444 # "random seed (default: 42)"
   val_ratio: 0.2 # "ratio for validaton (default: 0.2)"
   valid_batch_size: 1000 # "input batch size for validing (default: 1000)"
+  loss_rate: # loss 1 / loss 2 / loss 3
+    - 0.25
+    - 0.25
+    - 0.5
+  scheduler: "StepLR"
+  project: "mask_cls"
+  entity: "cv17"
 valid:
-  batch_size: 256 # "input batch size for validing (default: 1000)"
+  batch_size: 1000 # "input batch size for validing (default: 1000)"
   resize: # "resize size for image when you trained (default: (96, 128))"
-    - 384
-    - 512
-  model: InceptionResnet # "model type (default: BaseModel)"
-  data_dir: /home/ubuntu/yj_study/baseline_v2/dataset/eval
-  model_dir: ./models/inception_resnet3
+    - 240
+    - 240
+  model: Efficientnet_b1 # "model type (default: BaseModel)"
+  data_dir: /opt/ml/input/data/eval
+  model_dir: ./model/Efficientnet_b1_smooth
   output_dir: ./output
