@@ -60,10 +60,9 @@ class CustomAugmentation:
     def __init__(self, resize, mean, std, **args):
         self.transform = Compose(
             [
-                # CenterCrop((320, 256)),
+                CenterCrop((244, 220)),
                 Resize(resize, Image.BILINEAR),
                 # ColorJitter(0.1, 0.1, 0.1, 0.1),
-                TF.adjust_sharpness(),
                 ToTensor(),
                 Normalize(mean=mean, std=std),
                 # AddGaussianNoise()

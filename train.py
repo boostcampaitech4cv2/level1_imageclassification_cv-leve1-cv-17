@@ -134,7 +134,7 @@ def train(data_dir, model_dir, args):
         num_workers=multiprocessing.cpu_count() // 2,
         shuffle=True,
         pin_memory=use_cuda,
-        drop_last=True,
+        drop_last=False,
     )
 
     val_loader = DataLoader(
@@ -143,7 +143,7 @@ def train(data_dir, model_dir, args):
         num_workers=multiprocessing.cpu_count() // 2,
         shuffle=False,
         pin_memory=use_cuda,
-        drop_last=True,
+        drop_last=False,
     )
 
     # -- model
@@ -160,7 +160,7 @@ def train(data_dir, model_dir, args):
         filter(lambda p: p.requires_grad, model.parameters()), lr=args.lr, weight_decay=5e-4
     )
     # scheduler = StepLR(optimizer, args.lr_decay_step, gamma=0.5)
-    scheduler = CosineAnnealingLR(optimizer, 5)
+    scheduler = CosineAnnealingLR(optimizer, args.scheduler.value)
 
     # -- logging
     logger = SummaryWriter(log_dir=save_dir)
@@ -314,7 +314,7 @@ if __name__ == "__main__":
     model_dir = args.model_dir
 
     wandb.init(
-        project="mask_classification", entity="lylajeon", name=args.experiment_name, config=args,
+        project="mask_cls", entity="cv17", name=args.experiment_name, config=args,
     )
 
     train(data_dir, model_dir, args)
