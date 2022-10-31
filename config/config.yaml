@@ -2,7 +2,9 @@ train:
   experiment_name: "InceptionResnet smooth"
   augmentation: BaseAugmentation # "data augmentation type (default: BaseAugmentation)"
   batch_size: 256 # "input batch size for training (default: 64)"
-  criterion: label_smoothing # "criterion type (default: cross_entropy)"
+  criterion1: label_smoothing # "criterion type (default: cross_entropy)"
+  criterion2: label_smoothing # "criterion type (default: cross_entropy)"
+  criterion3: label_smoothing # "criterion type (default: cross_entropy)"
   data_dir: /home/ubuntu/yj_study/baseline_v2/dataset/train/images # null
   dataset: MaskMultiLabelDataset # "dataset augmentation type (default: MaskBaseDataset)"
   epochs: 10 # "number of epochs to train (default: 1)"
