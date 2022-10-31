@@ -78,7 +78,7 @@ class CustomAugmentation2:
     def __init__(self, resize, crop_size, mean, std, **args):
         self.transform = Compose([
             CenterCrop(crop_size),
-            cutout(mask_size=40, p=1, cutout_inside =False),
+            cutout(mask_size=40, p=0.5, cutout_inside=False),
             Resize(resize, Image.BILINEAR),
             ToTensor(),
             Normalize(mean=mean, std=std)

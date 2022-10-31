@@ -10,7 +10,7 @@ def cutout(mask_size, p, cutout_inside, mask_color=(0, 0, 0)):
         image = np.asarray(image).copy()
 
         if np.random.random() > p:
-            return image
+            return Image.fromarray(image)
 
         h, w = image.shape[:2]
 
