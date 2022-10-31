@@ -58,8 +58,8 @@ def inference(data_dir, model_dir, output_dir, args):
     with torch.no_grad():
         for idx, images in enumerate(loader):
             images = images.to(device)
-            pred = model(images)
-            (mask_out, gender_out, age_out) = torch.split(pred, [3, 2, 3], dim=1)
+            out = model(images)
+            (mask_out, gender_out, age_out) = torch.split(out, [3, 2, 3], dim=1)
             pred_mask = torch.argmax(mask_out, dim=-1)
             pred_gender = torch.argmax(gender_out, dim=-1)
             pred_age = torch.argmax(age_out, dim=-1)

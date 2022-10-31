@@ -193,4 +193,4 @@ wandb/*
 dataset/*
 *.pth
 model/*
-config/*
+output/

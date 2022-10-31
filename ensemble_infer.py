@@ -61,6 +61,7 @@ def inference(data_dir, model_dir, output_dir, args):
     with torch.no_grad():
         for fold, model in enumerate(model_list):
             model.eval()
+            
         for idx, images in enumerate(loader):
             images = images.to(device)
 
@@ -77,7 +78,7 @@ def inference(data_dir, model_dir, output_dir, args):
                     vote = pred
                 else:
                     vote += pred
-            vote = torch.tensor(vote / len(model_list), dtype=torch.int32).cpu().numpy()
+            vote = torch.round(torch.tensor(vote / len(model_list))).cpu().numpy()
             preds.extend(vote)
 
     info['ans'] = preds

@@ -204,7 +204,7 @@ def train(data_dir, model_dir, args):
 
             # weighted loss
             loss_list = [mask_loss, gender_loss, age_loss]
-            weight_list = [0.2, 0.3, 0.5]
+            weight_list = [1, 1, 1.5]
             loss = weighted_loss(loss_list, weight_list)
 
             loss.backward()
@@ -274,7 +274,7 @@ def train(data_dir, model_dir, args):
 
                 # weighted loss
                 loss_list = [mask_loss, gender_loss, age_loss]
-                weight_list = [0.25, 0.25, 0.5]
+                weight_list = [1, 1, 1.5]
                 loss = weighted_loss(loss_list, weight_list)
 
                 loss_item = loss.item()
