@@ -192,5 +192,5 @@ wandb/*
 *.csv
 dataset/*
 *.pth
-models/*
-
+model/*
+config/*
