@@ -57,16 +57,16 @@ def increment_path(path, exist_ok=False):
 
 
 def train(data_dir, model_dir, args):
-    wandb.login
+    # wandb.login
 
-    wandb.init(project = "mask_classification", entity = "cv17",
-                config = {"batch_size": args.batch_size,
-                        "learning_rate" : args.lr,
-                        "epochs"    : args.epochs,
-                        "model_name"  : args.model,
-                        "optimizer" : args.optimizer,
-                        "seed"  : args.seed
-                })
+    # wandb.init(project = "mask_classification", entity = "cv17",
+    #             config = {"batch_size": args.batch_size,
+    #                     "learning_rate" : args.lr,
+    #                     "epochs"    : args.epochs,
+    #                     "model_name"  : args.model,
+    #                     "optimizer" : args.optimizer,
+    #                     "seed"  : args.seed
+    #             })
 
 
     seed_everything(args.seed)
@@ -82,7 +82,7 @@ def train(data_dir, model_dir, args):
     dataset = dataset_module(
         data_dir=data_dir,
     )
-    num_classes = dataset.num_classes  # 3 + 2 + 3
+    num_classes = dataset.num_classes  # 3 + 2 * 3
 
     # -- augmentation
     transform_module = getattr(import_module("dataset"), args.train_augmentation)  # CustomAugmentation
@@ -115,8 +115,7 @@ def train(data_dir, model_dir, args):
 
         # -- loss & metric
         criterion = create_criterion(args.criterion)  # cross_entropy
-        criterion2 = create_criterion(args.criterion2) # label_smoothing
-        criterion3 = create_criterion(args.criterion3) # focal
+        criterion2 = create_criterion(args.criterion2) # focal_loss
         opt_module = getattr(import_module("torch.optim"), args.optimizer)  # default: AdamW
         optimizer = opt_module(
         filter(lambda p: p.requires_grad, model.parameters()),
@@ -133,57 +132,53 @@ def train(data_dir, model_dir, args):
             model.train()
             loss_value = 0
             matches = 0
-            mask_matches, gender_matches, age_matches = 0, 0, 0
+            mask_matches, gen_age_matches = 0, 0
 
             for idx, train_batch in enumerate(train_loader):
-                inputs, (mask_labels, gender_labels, age_labels) = train_batch
+                inputs, (mask_labels, gen_age_labels) = train_batch
                 inputs = inputs.to(device)
 
-                labels = torch.stack((mask_labels, gender_labels, age_labels), dim=1)
-                mask_labels, gender_labels, age_labels = mask_labels.to(device), gender_labels.to(device), age_labels.to(device)
+                labels = torch.stack((mask_labels, gen_age_labels), dim=1)
+                mask_labels, gen_age_labels= mask_labels.to(device), gen_age_labels.to(device)
                 labels = labels.to(device)
 
                 optimizer.zero_grad()
 
                 outs = model(inputs)
             
-                (mask_outs, gender_outs, age_outs) = torch.split(outs, [3, 2, 3], dim=1)
+                (mask_outs, gen_age_outs) = torch.split(outs, [3, 6], dim=1)
             
                 preds_mask = torch.argmax(mask_outs, dim=-1) 
-                preds_gender = torch.argmax(gender_outs, dim=-1) 
-                preds_age = torch.argmax(age_outs, dim=-1) 
-                preds = torch.stack((preds_mask, preds_gender, preds_age), dim=1)
+                preds_gen_age = torch.argmax(gen_age_outs, dim=-1)  
+                preds = torch.stack((preds_mask, preds_gen_age), dim=1)
 
                 mask_loss = criterion(mask_outs, mask_labels) # crossentropy
-                gender_loss = criterion2(gender_outs, gender_labels) # label_smoothing
-                age_loss = criterion3(age_outs, age_labels) # focal
+                gen_age_loss = criterion2(gen_age_outs, gen_age_labels) # focal_loss
 
-                loss = mask_loss + gender_loss + 1.5 * age_loss
+                loss = mask_loss + gen_age_loss * 1.5
                 loss.backward()
                 optimizer.step()
 
                 loss_value += loss.item()
                 matches += torch.all((preds==labels), dim=1).sum().item()
                 mask_matches += (preds_mask == mask_labels).sum().item()
-                gender_matches += (preds_gender == gender_labels).sum().item()
-                age_matches += (preds_age == age_labels).sum().item()
+                gen_age_matches += (preds_gen_age == gen_age_labels).sum().item()
                 if (idx + 1) % args.log_interval == 0:
                     train_loss = loss_value / args.log_interval 
                     train_acc = matches / args.batch_size / args.log_interval
                     train_mask_acc = mask_matches / args.batch_size / args.log_interval
-                    train_gender_acc = gender_matches / args.batch_size / args.log_interval
-                    train_age_acc = age_matches / args.batch_size / args.log_interval
+                    train_gen_age_acc = gen_age_matches / args.batch_size / args.log_interval
                     current_lr = get_lr(optimizer)
                     print(
                         f"Epoch[{epoch + 1}/{args.epochs}]({idx + 1}/{len(train_loader)}) || "
-                        f"training loss {train_loss:4.4} || acc {train_acc:4.2%} || mask acc {train_mask_acc:4.2%} || gen acc {train_gender_acc:4.2%} || age acc {train_age_acc:4.2%} || lr {current_lr}"
+                        f"training loss {train_loss:4.4} || acc {train_acc:4.2%} || mask acc {train_mask_acc:4.2%} || gen_age acc {train_gen_age_acc:4.2%} || lr {current_lr}"
                     )
                     logger.add_scalar("Train/loss", train_loss, epoch * len(train_loader) + idx)
-                    wandb.log({'Train Avg Loss': train_loss, 'Train Acc': train_acc, 'Mask Acc': train_mask_acc, 'Gen Acc': train_gender_acc, 'Age Acc': train_age_acc})
+                    # wandb.log({'Train Avg Loss': train_loss, 'Train Acc': train_acc, 'Mask Acc': train_mask_acc, 'Gen Age Acc': train_gen_age_acc})
                 
                     loss_value = 0
                     matches = 0
-                    mask_matches, gender_matches, age_matches = 0, 0, 0
+                    mask_matches, gen_age_matches = 0, 0
 
             scheduler.step()
 
@@ -194,26 +189,24 @@ def train(data_dir, model_dir, args):
                 val_loss_items = []
                 val_acc_items = []
                 for val_batch in val_loader:
-                    inputs, (mask_labels, gender_labels, age_labels) = val_batch
+                    inputs, (mask_labels, gen_age_labels) = val_batch
 
                     inputs = inputs.to(device)
-                    labels = torch.stack((mask_labels, gender_labels, age_labels), dim=1)
-                    mask_labels, gender_labels, age_labels = mask_labels.to(device), gender_labels.to(device), age_labels.to(device)
+                    labels = torch.stack((mask_labels, gen_age_labels), dim=1)
+                    mask_labels, gen_age_labels = mask_labels.to(device), gen_age_labels.to(device)
                     labels = labels.to(device)
 
                     outs = model(inputs)
-                    (mask_outs, gender_outs, age_outs) = torch.split(outs, [3, 2, 3], dim=1)
+                    (mask_outs, gen_age_outs) = torch.split(outs, [3, 6], dim=1)
 
                     preds_mask = torch.argmax(mask_outs, dim=-1) 
-                    preds_gender = torch.argmax(gender_outs, dim=-1) 
-                    preds_age = torch.argmax(age_outs, dim=-1)
-                    preds = torch.stack((preds_mask, preds_gender, preds_age), dim=1)
+                    preds_gen_age = torch.argmax(gen_age_outs, dim=-1) 
+                    preds = torch.stack((preds_mask, preds_gen_age), dim=1)
 
                     mask_loss = criterion(mask_outs, mask_labels) # crossentropy , 기존의 loss
-                    gender_loss = criterion2(gender_outs, gender_labels) # label_smoothing
-                    age_loss = criterion3(age_outs, age_labels) # focal
+                    gen_age_loss = criterion2(gen_age_outs, gen_age_labels) # focal_loss
 
-                    loss = mask_loss + gender_loss + 1.5 * age_loss
+                    loss = mask_loss + gen_age_loss * 1.5
                     loss_item = loss.item()
 
                     matches = torch.all((preds==labels), dim=1).sum().item()
@@ -233,12 +226,12 @@ def train(data_dir, model_dir, args):
                 logger.add_scalar("Val/loss", val_loss, epoch)
                 logger.add_scalar("Val/accuracy", val_acc, epoch)
                 print()
-                wandb.log({
-                        "Validation Avg Loss": val_loss,
-                        "Validation Accuracy" : val_acc
-                        })
+    #             wandb.log({
+    #                     "Validation Avg Loss": val_loss,
+    #                     "Validation Accuracy" : val_acc
+    #                     })
 
-    wandb.finish()
+    # wandb.finish()
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
@@ -246,7 +239,7 @@ if __name__ == '__main__':
     # Data and model checkpoints directories
     parser.add_argument('--seed', type=int, default=42, help='random seed (default: 444)')
     parser.add_argument('--epochs', type=int, default=15, help='number of epochs to train (default: 20)')
-    parser.add_argument('--dataset', type=str, default='MaskMultiLabelDataset', help='dataset augmentation type (default: MaskMultiLabelDataset)')
+    parser.add_argument('--dataset', type=str, default='MaskMultiLabelDataset2', help='dataset augmentation type (default: MaskMultiLabelDataset)')
     parser.add_argument('--train_augmentation', type=str, default='MyAugmentation', help='data augmentation type')
     parser.add_argument('--val_augmentation', type=str, default='BaseAugmentation', help='data augmentation type')
     parser.add_argument("--resize", nargs="+", type=list, default=[240, 240], help='resize size for image when training')
@@ -257,8 +250,7 @@ if __name__ == '__main__':
     parser.add_argument('--lr', type=float, default=5e-4, help='learning rate (default: 1e-3)')
     parser.add_argument('--val_ratio', type=float, default=0.2, help='ratio for validaton (default: 0.2)')
     parser.add_argument('--criterion', type=str, default='cross_entropy', help='criterion type (default: cross_entropy)')
-    parser.add_argument('--criterion2', type=str, default='cross_entropy', help='criterion type (default: label_smoothing)')
-    parser.add_argument('--criterion3', type=str, default='focal', help='criterion type (default: focal)')
+    parser.add_argument('--criterion2', type=str, default='focal', help='criterion type (default: label_smoothing)')
     parser.add_argument('--scheduler', type=str, default='StepLR')
     parser.add_argument('--lr_decay_step', type=int, default=5, help='learning rate scheduler deacy step (default: 20)')
     parser.add_argument('--log_interval', type=int, default=20, help='how many batches to wait before logging training status')
