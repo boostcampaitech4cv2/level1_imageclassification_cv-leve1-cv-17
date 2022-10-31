@@ -22,6 +22,7 @@ import wandb
 from sklearn.metrics import f1_score
 import yaml
 from easydict import EasyDict
+from metric import EarlyStopping
 
 
 def seed_everything(seed):
@@ -143,7 +144,7 @@ def train(data_dir, model_dir, args):
         num_workers=multiprocessing.cpu_count() // 2,
         shuffle=False,
         pin_memory=use_cuda,
-        drop_last=True,
+        drop_last=False,
     )
 
     # -- model
@@ -166,6 +167,9 @@ def train(data_dir, model_dir, args):
     logger = SummaryWriter(log_dir=save_dir)
     with open(os.path.join(save_dir, "config.json"), "w", encoding="utf-8") as f:
         json.dump(vars(args), f, ensure_ascii=False, indent=4)
+        
+    # -- early stopping
+    early_stop = EarlyStopping(patience=args.patience, verbose=True, path=save_dir)
 
     best_val_acc = 0
     best_val_loss = np.inf
@@ -198,7 +202,7 @@ def train(data_dir, model_dir, args):
 
             # weighted loss
             loss_list = [mask_loss, gender_loss, age_loss]
-            weight_list = [0.2, 0.3, 0.5]
+            weight_list = [0.2, 0.2, 0.6]
             loss = weighted_loss(loss_list, weight_list)
 
             loss.backward()
@@ -259,7 +263,7 @@ def train(data_dir, model_dir, args):
 
                 # weighted loss
                 loss_list = [mask_loss, gender_loss, age_loss]
-                weight_list = [0.2, 0.3, 0.5]
+                weight_list = [0.25, 0.25, 0.5]
                 loss = weighted_loss(loss_list, weight_list)
 
                 loss_item = loss.item()
@@ -279,7 +283,7 @@ def train(data_dir, model_dir, args):
 
             val_loss = np.sum(val_loss_items) / len(val_loader)
             val_acc = np.sum(val_acc_items) / len(val_set)
-            # val_f1 = competition_metric(true_labels, model_preds)
+            val_f1 = competition_metric(true_labels, model_preds)
 
             best_val_loss = min(best_val_loss, val_loss)
             if val_acc > best_val_acc:
@@ -314,7 +318,7 @@ if __name__ == "__main__":
     model_dir = args.model_dir
 
     wandb.init(
-        project="mask_classification", entity="lylajeon", name=args.experiment_name, config=args,
+        project="pstage_01", entity="arislid", name=args.experiment_name, config=args,
     )
 
     train(data_dir, model_dir, args)

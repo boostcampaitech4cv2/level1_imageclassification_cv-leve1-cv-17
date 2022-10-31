@@ -3,6 +3,7 @@ import torch.nn.functional as F
 from torchvision.models import efficientnet_b1, efficientnet_b4, efficientnet_v2_l
 import torchvision.models as models
 from facenet_pytorch import InceptionResnetV1
+import timm
 
 
 class BaseModel(nn.Module):
@@ -116,3 +117,41 @@ class Efficientnet_v2_l(nn.Module):
     def init_weights(self, m):
         nn.init.kaiming_uniform_(m.weight)
         nn.init.constant_(m.bias, 0)
+        
+        
+'''
+https://github.com/facebookresearch/pycls/issues/78
+RegNetY models come from a design space that also includes the Squeeze-and-Excitation (SE) operation 
+(RegNetY = RegNetX + SE).
+
+https://github.com/rwightman/pytorch-image-models/blob/main/timm/models/regnet.py
+RegNet models 
+- regnetx: regnetx_002, 004, 006, 008, 016, 032, 040, 064, 080, 120, 160, 320
+- regnety: regnety_002, 004, 006, 008, 016, 032, 040, 064, 080, 120, 160, 320
+'''
+class RegnetX002(nn.Module):
+    def __init__(self, num_classes=18):
+        super(RegnetX002, self).__init__()
+        self.backbone = timm.create_model('regnetx_002', pretrained=True)
+        self.fc = nn.Sequential(
+            nn.Dropout(0.5),
+            nn.Linear(1000, num_classes)
+        )
+        
+        
+        self.name = "RegnetX002"
+        self.init_params()
+    
+    def forward(self, x):
+        x = self.backbone(x)
+        x = self.fc(x)
+        return x
+    
+    def init_params(self):
+        nn.init.kaiming_uniform_(self.fc[1].weight)
+        nn.init.zeros_(self.fc[1].bias)
+        
+        
+if __name__ == '__main__':
+    model = RegnetX002()
+    print(model)

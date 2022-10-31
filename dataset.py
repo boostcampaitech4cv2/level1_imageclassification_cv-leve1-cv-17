@@ -32,7 +32,7 @@ def is_image_file(filename):
 class BaseAugmentation:
     def __init__(self, resize, mean, std, **args):
         self.transform = Compose(
-            [Resize(resize, Image.BILINEAR), ToTensor(), Normalize(mean=mean, std=std),]
+            [ToTensor(), Normalize(mean=mean, std=std),]
         )
 
     def __call__(self, image):
@@ -63,7 +63,7 @@ class CustomAugmentation:
                 # CenterCrop((320, 256)),
                 Resize(resize, Image.BILINEAR),
                 # ColorJitter(0.1, 0.1, 0.1, 0.1),
-                TF.adjust_sharpness(),
+                # TF.adjust_sharpness(),
                 ToTensor(),
                 Normalize(mean=mean, std=std),
                 # AddGaussianNoise()
@@ -216,7 +216,12 @@ class MaskBaseDataset(Dataset):
 
     def read_image(self, index):
         image_path = self.image_paths[index]
-        return Image.open(image_path)
+        image = Image.open(image_path)
+        image = image.crop((145, 76, 145+224, 76+224))
+                # = (start_x, start_y, start_x + width, start_y + height)
+                # = (left, upper, right, lower) 
+                # = (가로 시작점, 세로 시작점, 가로 범위, 세로 범위)
+        return image
 
     @staticmethod
     def encode_multi_class(mask_label, gender_label, age_label) -> int:
@@ -314,7 +319,7 @@ class TestDataset(Dataset):
     def __init__(self, img_paths, resize, mean=(0.548, 0.504, 0.479), std=(0.237, 0.247, 0.246)):
         self.img_paths = img_paths
         self.transform = Compose(
-            [Resize(resize, Image.BILINEAR), ToTensor(), Normalize(mean=mean, std=std),]
+            [ToTensor(), Normalize(mean=mean, std=std),]
         )
 
     def __getitem__(self, index):
@@ -342,3 +347,9 @@ class MaskMultiLabelDataset(MaskSplitByProfileDataset):
 
         image_transform = self.transform(image)
         return image_transform, (mask_label, gender_label, age_label)
+
+
+
+
+if __name__ == '__main__':
+    pass

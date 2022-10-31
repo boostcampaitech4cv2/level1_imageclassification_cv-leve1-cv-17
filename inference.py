@@ -11,6 +11,7 @@ from dataset import MaskMultiLabelDataset, TestDataset, MaskBaseDataset
 
 import yaml
 from easydict import EasyDict
+from train import increment_path
 
 
 def load_model(saved_model, num_classes, device):
@@ -81,7 +82,8 @@ if __name__ == "__main__":
         args = EasyDict(args["valid"])
 
     data_dir = args.data_dir
-    model_dir = args.model_dir
+    # save_dir = increment_path(os.path.join(model_dir, args.experiment_name)) # train.py
+    model_dir = os.path.join(args.model_dir, args.experiment_name)
     output_dir = args.output_dir
 
     os.makedirs(output_dir, exist_ok=True)

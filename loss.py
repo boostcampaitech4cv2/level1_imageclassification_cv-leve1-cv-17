@@ -2,6 +2,8 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
+import math
+
 
 # https://discuss.pytorch.org/t/is-this-a-correct-implementation-for-focal-loss-in-pytorch/43327/8
 class FocalLoss(nn.Module):
@@ -64,12 +66,60 @@ class F1Loss(nn.Module):
         f1 = f1.clamp(min=self.epsilon, max=1 - self.epsilon)
         return 1 - f1.mean()
 
+# reference: https://github.com/TreB1eN/InsightFace_Pytorch/blob/master/model.py
+class Arcface(nn.Module):
+    # implementation of additive margin softmax loss in https://arxiv.org/abs/1801.05599  
+    def __init__(self, embedding_size=512, classnum=18, s=64, m=0.5, easy_margin=False):
+        super(Arcface, self).__init__()
+        self.classnum = classnum
+        self.kernel = nn.Parameter(torch.Tensor(embedding_size, classnum))
+        
+        nn.init.xavier_uniform_(self.kernel)
+        self.m = m # the margin value, default is 0.5
+        self.s = s # scalar value default is 64, see normface https://arxiv.org/abs/1704.06369
+        self.cos_m = math.cos(m)
+        self.sin_m = math.sin(m)
+        self.mm = self.sin_m * m
+        self.threshold = math.cos(math.pi - m)
+        
+    def l2_norm(input,axis=1):
+        norm = torch.norm(input,2,axis,True)
+        output = torch.div(input, norm)
+        
+        return output
+        
+    def forward(self, embeddings, label):
+        # weights norm
+        nB = len(embeddings)
+        kernel_norm = self.l2_norm(self.kernel, axis = 0)
+        cos_theta = cos_theta.clamp(-1, 1)
+        cos_theta_2 = torch.pow(cos_theta, 2)
+        sin_theta_2 = 1 - cos_theta_2
+        sin_theta = torch.sqrt(sin_theta_2)
+        cos_theta_m = (cos_theta * self.cos_m - sin_theta * self.sin_m)
+        # this condition controls the theta+m should in range [0, pi]
+        #      0<=theta+m<=pi
+        #     -m<=theta<=pi-m
+        cond_v = cos_theta - self.threshold
+        cond_mask = cond_v <= 0
+        keep_val = (cos_theta - self.mm)
+        cos_theta_m[cond_mask] = keep_val[cond_mask]
+        output = cos_theta * 1.0
+        
+        idx_ = torch.arange(0, nB, dtype=torch.long)
+        output[idx_, label] = cos_theta_m[idx_, label]
+        output *= self.s
+        
+        return output
+
+
 
 _criterion_entrypoints = {
     "cross_entropy": nn.CrossEntropyLoss,
     "focal": FocalLoss,
     "label_smoothing": LabelSmoothingLoss,
     "f1": F1Loss,
+    "arcface": Arcface,
 }
 
 
