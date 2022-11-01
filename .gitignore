@@ -18,6 +18,8 @@
 *.h5
 *.pickle
 checkpoint.*
+*.json
+*.txt
 
 # IPython
 profile_default/
@@ -192,4 +194,8 @@ wandb/*
 *.csv
 dataset/*
 *.pth
+model/*
+output/
 models/*
+
+EDA/EDA.ipynb_copy.ipynb

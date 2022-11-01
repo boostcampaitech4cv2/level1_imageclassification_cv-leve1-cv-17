@@ -9,7 +9,8 @@ import torch
 from PIL import Image
 from torch.utils.data import Dataset, Subset, random_split
 from torchvision.transforms import Resize, ToTensor, Normalize, Compose, CenterCrop, ColorJitter
-import torchvision.transforms.functional as TF
+import torchvision.transforms.functional as F
+from utils.Cutout import cutout
 
 IMG_EXTENSIONS = [
     ".jpg",
@@ -57,15 +58,32 @@ class AddGaussianNoise(object):
 
 
 class CustomAugmentation:
-    def __init__(self, resize, mean, std, **args):
+    def __init__(self, resize, crop_size, mean, std, **args):
         self.transform = Compose(
             [
-                CenterCrop((244, 220)),
+                # CenterCrop(crop_size),
                 Resize(resize, Image.BILINEAR),
                 # ColorJitter(0.1, 0.1, 0.1, 0.1),
+                F.adjust_sharpness(),
                 ToTensor(),
                 Normalize(mean=mean, std=std),
                 # AddGaussianNoise()
+            ]
+        )
+
+    def __call__(self, image):
+        return self.transform(image)
+
+
+class CustomAugmentation2:
+    def __init__(self, resize, crop_size, mean, std, **args):
+        self.transform = Compose(
+            [
+                CenterCrop(crop_size),
+                cutout(mask_size=40, p=0.5, cutout_inside=False),
+                Resize(resize, Image.BILINEAR),
+                ToTensor(),
+                Normalize(mean=mean, std=std),
             ]
         )
 
@@ -313,7 +331,12 @@ class TestDataset(Dataset):
     def __init__(self, img_paths, resize, mean=(0.548, 0.504, 0.479), std=(0.237, 0.247, 0.246)):
         self.img_paths = img_paths
         self.transform = Compose(
-            [Resize(resize, Image.BILINEAR), ToTensor(), Normalize(mean=mean, std=std),]
+            [
+                CenterCrop((320, 256)),
+                Resize(resize, Image.BILINEAR),
+                ToTensor(),
+                Normalize(mean=mean, std=std),
+            ]
         )
 
     def __getitem__(self, index):
@@ -341,3 +364,34 @@ class MaskMultiLabelDataset(MaskSplitByProfileDataset):
 
         image_transform = self.transform(image)
         return image_transform, (mask_label, gender_label, age_label)
+
+
+def getDataloader(
+    dataset, train_idx, valid_idx, batch_size, valid_batch_size, num_workers, use_cuda
+):
+    # 인자로 전달받은 dataset에서 train_idx에 해당하는 Subset 추출
+    train_set = torch.utils.data.Subset(dataset, indices=train_idx)
+    # 인자로 전달받은 dataset에서 valid_idx에 해당하는 Subset 추출
+    val_set = torch.utils.data.Subset(dataset, indices=valid_idx)
+
+    # 추출된 Train Subset으로 DataLoader 생성
+    train_loader = torch.utils.data.DataLoader(
+        train_set,
+        batch_size=batch_size,
+        num_workers=num_workers,
+        drop_last=False,
+        shuffle=True,
+        pin_memory=use_cuda,
+    )
+    # 추출된 Valid Subset으로 DataLoader 생성
+    val_loader = torch.utils.data.DataLoader(
+        val_set,
+        batch_size=valid_batch_size,
+        num_workers=num_workers,
+        drop_last=False,
+        shuffle=False,
+        pin_memory=use_cuda,
+    )
+
+    # 생성한 DataLoader 반환
+    return train_loader, val_loader, len(val_set)
