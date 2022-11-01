@@ -12,6 +12,8 @@ from dataset import TestDataset, MaskBaseDataset, MaskMultiLabelDataset
 import yaml
 from easydict import EasyDict
 
+import numpy as np
+
 def load_model(saved_model, num_classes, device, fold):
     model_cls = getattr(import_module("model"), args.model)
     model = model_cls(
@@ -38,7 +40,7 @@ def inference(data_dir, model_dir, output_dir, args):
     num_classes = MaskMultiLabelDataset.num_classes  # 3 + 2 + 3
     model_list = []
     for fold in range(5):
-        model = load_model(model_dir, num_classes, device, fold).to(device)
+        model = load_model(model_dir, num_classes, device, fold=fold).to(device)
         model_list.append(model)
 
     img_root = os.path.join(data_dir, 'images')
@@ -57,29 +59,33 @@ def inference(data_dir, model_dir, output_dir, args):
     )
 
     print("Calculating inference results..")
-    preds = []
+    oof_pred = None
     with torch.no_grad():
         for fold, model in enumerate(model_list):
             model.eval()
             
-        for idx, images in enumerate(loader):
-            images = images.to(device)
+        for fold, model in enumerate(model_list):
+            preds = []
+            for idx, images in enumerate(loader):
+                images = images.to(device)
 
-            for fold, model in enumerate(model_list):
+                # TTA
                 out = model(images)
-                (mask_out, gender_out, age_out) = torch.split(out, [3, 2, 3], dim=1)
-                pred_mask = torch.argmax(mask_out, dim=-1) 
-                pred_gender = torch.argmax(gender_out, dim=-1) 
-                pred_age = torch.argmax(age_out, dim=-1)
+                preds.extend(out.cpu().numpy())
+            
+            fold_pred = np.array(preds)
 
-                pred = pred_mask * 6 + pred_gender * 3 + pred_age
-                
-                if fold == 0:
-                    vote = pred
-                else:
-                    vote += pred
-            vote = torch.round(torch.tensor(vote / len(model_list))).cpu().numpy()
-            preds.extend(vote)
+            if oof_pred is None:
+                oof_pred = fold_pred / len(model_list)
+            else:
+                oof_pred += fold_pred / len(model_list)
+
+    pred_all = np.split(oof_pred, [3, 5, 8], axis=1)
+    pred_mask = np.argmax(pred_all[0], axis=-1) 
+    pred_gender = np.argmax(pred_all[1], axis=-1) 
+    pred_age = np.argmax(pred_all[2], axis=-1)
+    preds = pred_mask * 6 + pred_gender * 3 + pred_age
+
 
     info['ans'] = preds
     save_path = os.path.join(output_dir, f'output.csv')
