@@ -151,7 +151,7 @@ def train(data_dir, model_dir, args):
 
     # -- loss & metric
     criterion1 = create_criterion(args.criterion1)  # default: cross_entropy
-    criterion2 = create_criterion(args.criterion2) # label_smoothing
+    criterion2 = create_criterion(args.criterion2) # bce
     criterion3 = create_criterion(args.criterion3) # focal
     opt_module = getattr(import_module("torch.optim"), args.optimizer)  # default: SGD
     optimizer = opt_module(
@@ -189,15 +189,18 @@ def train(data_dir, model_dir, args):
             inputs = inputs.to(device)
 
             mask_labels = mask_labels.to(device)
-            gender_labels = gender_labels.to(device)
+            gender_labels = gender_labels.float().to(device)
             age_labels = age_labels.to(device)
-            labels = mask_labels * 6 + gender_labels * 3 + age_labels
-            labels = labels.to(device)
 
             optimizer.zero_grad()
 
-            outs = model(inputs)
-            (mask_outs, gender_outs, age_outs) = torch.split(outs, [3, 2, 3], dim=1)
+            mask_outs, gender_outs, age_outs = model(inputs)
+            mask_outs = mask_outs.view(inputs.size(0), -1)
+            gender_outs = gender_outs.view(inputs.size(0), -1)
+            age_outs = age_outs.view(inputs.size(0), -1)
+
+            # outs = model(inputs)
+            # (mask_outs, gender_outs, age_outs) = torch.split(outs, [3, 2, 3], dim=1)
 
             preds_mask = torch.argmax(mask_outs, dim=-1)
             preds_gender = torch.argmax(gender_outs, dim=-1)
@@ -207,6 +210,10 @@ def train(data_dir, model_dir, args):
             mask_loss = criterion1(mask_outs, mask_labels)
             gender_loss = criterion2(gender_outs, gender_labels)
             age_loss = criterion3(age_outs, age_labels)
+
+            gender_labels = gender_labels.argmax(-1)
+            labels = mask_labels * 6 + gender_labels * 3 + age_labels
+            labels = labels.to(device)
 
             # weighted loss
             loss_list = [mask_loss, gender_loss, age_loss]
@@ -235,7 +242,7 @@ def train(data_dir, model_dir, args):
             gen_preds.extend(preds_gender.detach().cpu().numpy())
             true_gen_labels.extend(gender_labels.detach().cpu().numpy())
 
-            age_preds.extend(preds.detach().cpu().numpy())
+            age_preds.extend(preds_age.detach().cpu().numpy())
             true_age_labels.extend(age_labels.detach().cpu().numpy())
 
             if (idx + 1) % args.log_interval == 0:
@@ -291,22 +298,28 @@ def train(data_dir, model_dir, args):
                 inputs = inputs.to(device)
 
                 mask_labels = mask_labels.to(device)
-                gender_labels = gender_labels.to(device)
+                gender_labels = gender_labels.float().to(device)
                 age_labels = age_labels.to(device)
-                labels = mask_labels * 6 + gender_labels * 3 + age_labels
-                labels = labels.to(device)
 
-                outs = model(inputs)
-                (mask_outs, gender_outs, age_outs) = torch.split(outs, [3, 2, 3], dim=1)
-
-                preds_mask = torch.argmax(mask_outs, dim=-1)
-                preds_gender = torch.argmax(gender_outs, dim=-1)
-                preds_age = torch.argmax(age_outs, dim=-1)
-                preds = preds_mask * 6 + preds_gender * 3 + preds_age
+                mask_outs, gender_outs, age_outs = model(inputs)
+                mask_outs = mask_outs.view(inputs.size(0), -1)
+                gender_outs = gender_outs.view(inputs.size(0), -1)
+                age_outs = age_outs.view(inputs.size(0), -1)
+                # outs = model(inputs)
+                # (mask_outs, gender_outs, age_outs) = torch.split(outs, [3, 2, 3], dim=1)
 
                 mask_loss = criterion1(mask_outs, mask_labels)
                 gender_loss = criterion2(gender_outs, gender_labels)
                 age_loss = criterion3(age_outs, age_labels)
+
+                gender_labels = gender_labels.argmax(-1)
+                labels = mask_labels * 6 + gender_labels * 3 + age_labels
+                labels = labels.to(device)
+                
+                preds_mask = torch.argmax(mask_outs, dim=-1)
+                preds_gender = torch.argmax(gender_outs, dim=-1)
+                preds_age = torch.argmax(age_outs, dim=-1)
+                preds = preds_mask * 6 + preds_gender * 3 + preds_age
 
                 # weighted loss
                 loss_list = [mask_loss, gender_loss, age_loss]
@@ -332,7 +345,7 @@ def train(data_dir, model_dir, args):
                 gen_preds.extend(preds_gender.detach().cpu().numpy())
                 true_gen_labels.extend(gender_labels.detach().cpu().numpy())
 
-                age_preds.extend(preds.detach().cpu().numpy())
+                age_preds.extend(preds_age.detach().cpu().numpy())
                 true_age_labels.extend(age_labels.detach().cpu().numpy())
 
             val_loss = np.sum(val_loss_items) / len(val_loader)

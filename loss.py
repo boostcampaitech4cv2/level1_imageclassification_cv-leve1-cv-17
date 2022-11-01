@@ -5,7 +5,7 @@ import torch.nn.functional as F
 
 # https://discuss.pytorch.org/t/is-this-a-correct-implementation-for-focal-loss-in-pytorch/43327/8
 class FocalLoss(nn.Module):
-    def __init__(self, weight=None, gamma=2.0, reduction="mean"):
+    def __init__(self, weight=0.25, gamma=2.0, reduction="mean"):
         nn.Module.__init__(self)
         self.weight = weight
         self.gamma = gamma
@@ -14,10 +14,14 @@ class FocalLoss(nn.Module):
     def forward(self, input_tensor, target_tensor):
         log_prob = F.log_softmax(input_tensor, dim=-1)
         prob = torch.exp(log_prob)
+
+        weight = torch.ones([input_tensor.size(1)], device='cuda')
+        weight *= self.weight
+
         return F.nll_loss(
             ((1 - prob) ** self.gamma) * log_prob,
             target_tensor,
-            weight=self.weight,
+            weight=weight,
             reduction=self.reduction,
         )
 
@@ -67,6 +71,7 @@ class F1Loss(nn.Module):
 
 _criterion_entrypoints = {
     "cross_entropy": nn.CrossEntropyLoss,
+    "binary_cross_entropy": nn.BCEWithLogitsLoss,
     "focal": FocalLoss,
     "label_smoothing": LabelSmoothingLoss,
     "f1": F1Loss,
