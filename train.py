@@ -235,7 +235,7 @@ def train(data_dir, model_dir, args):
             gen_preds.extend(preds_gender.detach().cpu().numpy())
             true_gen_labels.extend(gender_labels.detach().cpu().numpy())
 
-            age_preds.extend(preds.detach().cpu().numpy())
+            age_preds.extend(preds_age.detach().cpu().numpy())
             true_age_labels.extend(age_labels.detach().cpu().numpy())
 
             if (idx + 1) % args.log_interval == 0:
@@ -332,7 +332,7 @@ def train(data_dir, model_dir, args):
                 gen_preds.extend(preds_gender.detach().cpu().numpy())
                 true_gen_labels.extend(gender_labels.detach().cpu().numpy())
 
-                age_preds.extend(preds.detach().cpu().numpy())
+                age_preds.extend(preds_age.detach().cpu().numpy())
                 true_age_labels.extend(age_labels.detach().cpu().numpy())
 
             val_loss = np.sum(val_loss_items) / len(val_loader)
