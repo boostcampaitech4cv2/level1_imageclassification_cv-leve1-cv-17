@@ -1,5 +1,5 @@
 train:
-  experiment_name: "IR_(CE,CE,CE)_(384,512) multisample (0.3,8)"
+  experiment_name: IR_(CE,CE,CE)_(384,512) multisample (0,3,8) classifier dumped
   augmentation: BaseAugmentation # "data augmentation type (default: BaseAugmentation)"
   batch_size: 256 # "input batch size for training (default: 64)"
   criterion1: cross_entropy # "criterion type (default: cross_entropy)"
@@ -46,7 +46,7 @@ valid:
     - 480
   model: InceptionResnet_MS # "model type (default: BaseModel)"
   data_dir: /home/ubuntu/yj_study/baseline_v2/dataset/eval
-  model_dir: /home/ubuntu/yj_study/baseline_v2/model/IR_(CE,CE,CE)_(384,512)_multisample_(0.3,8)
+  model_dir: /home/ubuntu/yj_study/baseline_v2/model/IR_(CE,CE,CE)_(384,512)_multisample_(0,3,8)_classifier_dumped2
   output_dir: /home/ubuntu/yj_study/baseline_v2/output
   dropout_p: 0.3
   classifier_num: 8

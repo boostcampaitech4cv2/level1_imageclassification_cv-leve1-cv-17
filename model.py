@@ -4,6 +4,7 @@ from torchvision.models import efficientnet_b1, efficientnet_b4, efficientnet_v2
 import torchvision.models as models
 from facenet_pytorch import InceptionResnetV1
 import torch
+from efficientnet_pytorch import EfficientNet
 
 
 class BaseModel(nn.Module):
@@ -136,8 +137,62 @@ class InceptionResnet_MS(nn.Module):
 
     def __init__(self, num_classes, classifier_num, dropout_p):
         super().__init__()
-        self.backbone = InceptionResnetV1(pretrained="vggface2", classify=True,)
-        self.n_features = self.backbone.logits.out_features
+        self.backbone = InceptionResnetV1(pretrained="vggface2", classify=False)
+
+        self.last_linear = nn.Linear(1792, 512, bias=True)
+        self.last_bn = nn.BatchNorm1d(512, eps=0.001, momentum=0.1, affine=True)
+        self.logits = nn.Linear(512, num_classes, bias=True)
+
+        self.classifier_num = classifier_num
+        self.dropout_p = dropout_p
+        self.high_dropout = nn.Dropout(p=self.dropout_p)
+
+        self.init_weights(self.logits)
+        self.init_weights(self.last_linear)
+        self.init_weights(self.last_bn)
+
+    def forward(self, x):
+        x = self.backbone.conv2d_1a(x)
+        x = self.backbone.conv2d_2a(x)
+        x = self.backbone.conv2d_2b(x)
+        x = self.backbone.maxpool_3a(x)
+        x = self.backbone.conv2d_3b(x)
+        x = self.backbone.conv2d_4a(x)
+        x = self.backbone.conv2d_4b(x)
+        x = self.backbone.repeat_1(x)
+        x = self.backbone.mixed_6a(x)
+        x = self.backbone.repeat_2(x)
+        x = self.backbone.mixed_7a(x)
+        x = self.backbone.repeat_3(x)
+        x = self.backbone.block8(x)
+        x = self.backbone.avgpool_1a(x)
+        x = x.view(x.shape[0], -1)
+        x = self.last_linear(x)
+        x = self.last_bn(x)
+        logits = torch.mean(
+            torch.stack(
+                [self.logits(self.high_dropout(x)) for _ in range(self.classifier_num)], dim=0,
+            ),
+            dim=0,
+        )
+        # x = logits
+        return logits
+
+    def init_weights(self, m):
+        if isinstance(m, nn.Linear):
+            nn.init.kaiming_uniform_(m.weight)
+            nn.init.constant_(m.bias, 0)
+        elif isinstance(m, nn.BatchNorm1d):
+            nn.init.constant_(m.weight.data, 1)
+            nn.init.constant_(m.bias.data, 0)
+
+
+class Efficientb7_MS(nn.Module):
+    def __init__(self, num_classes, classifier_num, dropout_p):
+        super().__init__()
+        self.backbone = self.load_model()
+
+        self.n_features = self.backbone._fc.out_features
         self.classifier = nn.Linear(self.n_features, num_classes)  # no dropout
 
         self.classifier_num = classifier_num

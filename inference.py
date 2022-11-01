@@ -21,7 +21,6 @@ def load_model(saved_model, num_classes, device):
         )
     else:
         model = model_cls(num_classes=num_classes)
-    # model = model_cls(num_classes=num_classes)
 
     # tarpath = os.path.join(saved_model, 'best.tar.gz')
     # tar = tarfile.open(tarpath, 'r:gz')
