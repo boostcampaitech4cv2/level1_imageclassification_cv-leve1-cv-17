@@ -1,17 +1,17 @@
 train:
-  experiment_name: "Efficientnet_b1 smooth"
-  augmentation: CustomAugmentation2 # "data augmentation type (default: BaseAugmentation)"
-  batch_size: 64 # "input batch size for training (default: 64)"
+  experiment_name: "IR_(CE,CE,FO)_(240,240)"
+  augmentation: BaseAugmentation # "data augmentation type (default: BaseAugmentation)"
+  batch_size: 256 # "input batch size for training (default: 64)"
   criterion1: cross_entropy # "criterion type (default: cross_entropy)"
   criterion2: cross_entropy # "criterion type (default: cross_entropy)"
   criterion3: focal # "criterion type (default: cross_entropy)"
-  data_dir: /opt/ml/input/data/train/images # null
+  data_dir: ./dataset/train/images # null
   dataset: MaskMultiLabelDataset # "dataset augmentation type (default: MaskBaseDataset)"
-  epochs: 15 # "number of epochs to train (default: 1)"
+  epochs: 10 # "number of epochs to train (default: 1)"
   log_interval: 20 # "how many batches to wait before logging training status"
   lr: 0.001 # "learning rate (default: 1e-3)"
   lr_decay_step: 5 # "learning rate scheduler decay step (default: 20)"
-  model: Efficientnet_b1 # "model type (default: BaseModel)"
+  model: InceptionResnet # "model type (default: BaseModel)"
   model_dir: ./model # null
   name: exp # "model save at {SM_MODEL_DIR}/{name}"
   optimizer: AdamW # null
@@ -30,23 +30,15 @@ train:
     - 0.25
     - 0.25
     - 0.5
-  scheduler: "StepLR"
+  scheduler: "CosineAnnealingLR"
   project: "mask_cls"
   entity: "cv17"
 valid:
   batch_size: 1000 # "input batch size for validing (default: 1000)"
   resize: # "resize size for image when you trained (default: (96, 128))"
-<<<<<<< HEAD
     - 384
     - 512
   model: InceptionResnet # "model type (default: BaseModel)"
   data_dir: /home/ubuntu/yj_study/baseline_v2/dataset/eval
-  model_dir: ./models/no_droplast_T_max=10
-=======
-    - 240
-    - 240
-  model: Efficientnet_b1 # "model type (default: BaseModel)"
-  data_dir: /opt/ml/input/data/eval
-  model_dir: ./model/Efficientnet_b1_smooth
->>>>>>> main
+  model_dir: ./model/no_droplast_T_max=10
   output_dir: ./output

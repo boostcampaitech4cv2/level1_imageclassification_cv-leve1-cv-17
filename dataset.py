@@ -61,13 +61,11 @@ class CustomAugmentation:
     def __init__(self, resize, crop_size, mean, std, **args):
         self.transform = Compose(
             [
-                # CenterCrop(crop_size),
                 Resize(resize, Image.BILINEAR),
-                # ColorJitter(0.1, 0.1, 0.1, 0.1),
-                F.adjust_sharpness(),
+                CenterCrop(crop_size),
+                # cutout(mask_size=40, p=1, cutout_inside=False),
                 ToTensor(),
                 Normalize(mean=mean, std=std),
-                # AddGaussianNoise()
             ]
         )
 
@@ -330,14 +328,11 @@ class MaskSplitByProfileDataset(MaskBaseDataset):
 class TestDataset(Dataset):
     def __init__(self, img_paths, resize, mean=(0.548, 0.504, 0.479), std=(0.237, 0.247, 0.246)):
         self.img_paths = img_paths
-        self.transform = Compose(
-            [
-                CenterCrop((320, 256)),
-                Resize(resize, Image.BILINEAR),
-                ToTensor(),
-                Normalize(mean=mean, std=std),
-            ]
-        )
+        self.mean = mean
+        self.std = std
+        # self.transform = Compose(
+        #     [Resize(resize, Image.BILINEAR), ToTensor(), Normalize(mean=mean, std=std),]
+        # )
 
     def __getitem__(self, index):
         image = Image.open(self.img_paths[index])
@@ -348,6 +343,9 @@ class TestDataset(Dataset):
 
     def __len__(self):
         return len(self.img_paths)
+
+    def set_transform(self, transform):
+        self.transform = transform
 
 
 class MaskMultiLabelDataset(MaskSplitByProfileDataset):

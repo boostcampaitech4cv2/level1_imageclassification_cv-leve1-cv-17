@@ -110,7 +110,9 @@ def train(data_dir, model_dir, args):
     device = torch.device("cuda" if use_cuda else "cpu")
 
     # -- dataset
-    dataset_module = getattr(import_module("dataset"), args.dataset)  # default: MaskSplitByProfileDataset
+    dataset_module = getattr(
+        import_module("dataset"), args.dataset
+    )  # default: MaskSplitByProfileDataset
     dataset = dataset_module(data_dir=data_dir,)
     num_classes = dataset.num_classes  # 3 + 2 + 3
 
@@ -118,7 +120,9 @@ def train(data_dir, model_dir, args):
     transform_module = getattr(
         import_module("dataset"), args.augmentation
     )  # default: BaseAugmentation
-    transform = transform_module(resize=args.resize, crop_size=args.crop_size, mean=dataset.mean, std=dataset.std,)
+    transform = transform_module(
+        resize=args.resize, crop_size=args.crop_size, mean=dataset.mean, std=dataset.std,
+    )
     dataset.set_transform(transform)
 
     # -- data_loader
@@ -151,17 +155,17 @@ def train(data_dir, model_dir, args):
 
     # -- loss & metric
     criterion1 = create_criterion(args.criterion1)  # default: cross_entropy
-    criterion2 = create_criterion(args.criterion2) # label_smoothing
-    criterion3 = create_criterion(args.criterion3) # focal
+    criterion2 = create_criterion(args.criterion2)  # label_smoothing
+    criterion3 = create_criterion(args.criterion3)  # focal
     opt_module = getattr(import_module("torch.optim"), args.optimizer)  # default: SGD
     optimizer = opt_module(
         filter(lambda p: p.requires_grad, model.parameters()), lr=args.lr, weight_decay=5e-4
     )
 
     # -- scheduler
-    if args.scheduler == 'StepLR':
+    if args.scheduler == "StepLR":
         scheduler = StepLR(optimizer, args.lr_decay_step, gamma=0.5)
-    elif args.scheduler == 'CosineAnnealingLR':
+    elif args.scheduler == "CosineAnnealingLR":
         scheduler = CosineAnnealingLR(optimizer, args.epochs)
 
     # -- logging
@@ -225,7 +229,7 @@ def train(data_dir, model_dir, args):
             # mask_matches += (preds_mask == mask_labels).sum().item()
             # gender_matches += (preds_gender == gender_labels).sum().item()
             # age_matches += (preds_age == age_labels).sum().item()
-            
+
             model_preds.extend(preds.detach().cpu().numpy())
             true_labels.extend(labels.detach().cpu().numpy())
 
@@ -249,10 +253,10 @@ def train(data_dir, model_dir, args):
                 # train_gender_acc = gender_matches / args.batch_size / args.log_interval
                 # train_age_acc = age_matches / args.batch_size / args.log_interval
 
-                train_f1 = f1_score(true_labels, model_preds, average='macro')
-                train_f1_mask = f1_score(true_mask_labels, mask_preds, average='macro')
-                train_f1_gen = f1_score(true_gen_labels, gen_preds, average='macro')
-                train_f1_age = f1_score(true_age_labels, age_preds, average='macro')
+                train_f1 = f1_score(true_labels, model_preds, average="macro")
+                train_f1_mask = f1_score(true_mask_labels, mask_preds, average="macro")
+                train_f1_gen = f1_score(true_gen_labels, gen_preds, average="macro")
+                train_f1_age = f1_score(true_age_labels, age_preds, average="macro")
 
                 current_lr = get_lr(optimizer)
                 print(
@@ -262,8 +266,19 @@ def train(data_dir, model_dir, args):
                 logger.add_scalar("Train/loss", train_loss, epoch * len(train_loader) + idx)
 
                 # wandb
-                wandb.log({'Tr Avg Loss': train_loss / weight_sum, 'Tr Avg f1': train_f1, 'Tr mask loss': train_mask_loss, 'Tr mask f1': train_f1_mask, 
-                'Tr gen loss': train_gender_loss, 'Tr gen f1': train_f1_gen, 'Tr age loss': train_age_loss, 'Tr age f1': train_f1_age})
+                wandb.log(
+                    {
+                        "Tr Avg Loss": train_loss / weight_sum,
+                        "Tr Avg f1": train_f1,
+                        "Tr mask loss": train_mask_loss,
+                        "Tr mask f1": train_f1_mask,
+                        "Tr gen loss": train_gender_loss,
+                        "Tr gen f1": train_f1_gen,
+                        "Tr age loss": train_age_loss,
+                        "Tr age f1": train_f1_age,
+                        "cm": wandb.sklearn.plot_confusion_matrix(labels.numpy(), preds),
+                    }
+                )
 
                 loss_value = 0
                 mask_loss_value, gender_loss_value, age_loss_value = 0, 0, 0
@@ -314,7 +329,11 @@ def train(data_dir, model_dir, args):
                 loss = weighted_loss(loss_list, weight_list)
 
                 loss_item = loss.item()
-                mask_loss_item, gender_loss_item, age_loss_item = mask_loss.item(), gender_loss.item(), age_loss.item()
+                mask_loss_item, gender_loss_item, age_loss_item = (
+                    mask_loss.item(),
+                    gender_loss.item(),
+                    age_loss.item(),
+                )
                 val_loss_items.append(loss_item)
                 val_mask_loss_items.append(mask_loss_item)
                 val_gender_loss_items.append(gender_loss_item)
@@ -342,10 +361,10 @@ def train(data_dir, model_dir, args):
 
             val_acc = np.sum(val_acc_items) / len(val_set)
 
-            val_f1 = f1_score(true_labels, model_preds, average='macro')
-            val_f1_mask = f1_score(true_mask_labels, mask_preds, average='macro')
-            val_f1_gender = f1_score(true_gen_labels, gen_preds, average='macro')
-            val_f1_age = f1_score(true_age_labels, age_preds, average='macro')
+            val_f1 = f1_score(true_labels, model_preds, average="macro")
+            val_f1_mask = f1_score(true_mask_labels, mask_preds, average="macro")
+            val_f1_gender = f1_score(true_gen_labels, gen_preds, average="macro")
+            val_f1_age = f1_score(true_age_labels, age_preds, average="macro")
 
             best_val_acc = max(best_val_acc, val_acc)
             best_val_f1 = max(best_val_f1, val_f1)
@@ -366,8 +385,18 @@ def train(data_dir, model_dir, args):
             print()
 
             # wandb
-            wandb.log({'Val Avg Loss': val_loss / weight_sum, 'Val Avg f1': val_f1, 'Val mask loss': val_mask_loss, 'Val mask f1': val_f1_mask, 
-                'Val gen loss': val_gender_loss, 'Val gen f1': val_f1_gender, 'Val age loss': val_age_loss, 'Val age f1': val_f1_age})
+            wandb.log(
+                {
+                    "Val Avg Loss": val_loss / weight_sum,
+                    "Val Avg f1": val_f1,
+                    "Val mask loss": val_mask_loss,
+                    "Val mask f1": val_f1_mask,
+                    "Val gen loss": val_gender_loss,
+                    "Val gen f1": val_f1_gender,
+                    "Val age loss": val_age_loss,
+                    "Val age f1": val_f1_age,
+                }
+            )
 
 
 if __name__ == "__main__":
@@ -382,41 +411,37 @@ if __name__ == "__main__":
     data_dir = args.data_dir
     model_dir = args.model_dir
     CFG = {
-        "epochs" : args.epochs,
-        "batch_size" : args.batch_size,
-        "learning_rate" : args.lr,
-        "seed" : args.seed,
-        "model" : args.model,
-        "optimizer" : args.optimizer,
-        "scheduler" : args.scheduler,
-        "criterion1" : args.criterion1,
-        "criterion2" : args.criterion2,
-        "criterion3" : args.criterion3,
-        "loss_rate" : args.loss_rate,  
-        "img_size" : args.resize,
-        "crop_size" : args.crop_size,
-        "augmentation" : args.augmentation
+        "epochs": args.epochs,
+        "batch_size": args.batch_size,
+        "learning_rate": args.lr,
+        "seed": args.seed,
+        "model": args.model,
+        "optimizer": args.optimizer,
+        "scheduler": args.scheduler,
+        "criterion1": args.criterion1,
+        "criterion2": args.criterion2,
+        "criterion3": args.criterion3,
+        "loss_rate": args.loss_rate,
+        "img_size": args.resize,
+        "crop_size": args.crop_size,
+        "augmentation": args.augmentation,
     }
 
     wandb.init(
-<<<<<<< HEAD
-        project="mask_cls", entity="cv17", name=args.experiment_name, config=args,
-=======
         project=args.project, entity=args.entity, name=args.experiment_name, config=CFG,
->>>>>>> main
     )
 
     wandb.define_metric("Train Avg loss", summary="min")
-    wandb.define_metric('Tr Avg f1', summary='max')
-    wandb.define_metric('Tr mask f1', summary='max')
-    wandb.define_metric('Tr gen f1', summary='max')
-    wandb.define_metric('Tr age f1', summary='max')
+    wandb.define_metric("Tr Avg f1", summary="max")
+    wandb.define_metric("Tr mask f1", summary="max")
+    wandb.define_metric("Tr gen f1", summary="max")
+    wandb.define_metric("Tr age f1", summary="max")
 
     wandb.define_metric("Val Avg loss", summary="min")
     wandb.define_metric("Val Avg f1", summary="max")
-    wandb.define_metric('Val mask f1', summary='max')
-    wandb.define_metric('Val gen f1', summary='max')
-    wandb.define_metric('Val age f1', summary='max')
+    wandb.define_metric("Val mask f1", summary="max")
+    wandb.define_metric("Val gen f1", summary="max")
+    wandb.define_metric("Val age f1", summary="max")
 
     train(data_dir, model_dir, args)
 

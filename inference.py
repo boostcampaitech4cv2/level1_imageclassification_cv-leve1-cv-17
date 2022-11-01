@@ -44,6 +44,16 @@ def inference(data_dir, model_dir, output_dir, args):
 
     img_paths = [os.path.join(img_root, img_id) for img_id in info.ImageID]
     dataset = TestDataset(img_paths, args.resize)
+
+    # -- augmentation
+    transform_module = getattr(
+        import_module("dataset"), args.augmentation
+    )  # default: BaseAugmentation
+    transform = transform_module(
+        resize=args.resize, crop_size=args.crop_size, mean=dataset.mean, std=dataset.std,
+    )
+    dataset.set_transform(transform)
+
     loader = torch.utils.data.DataLoader(
         dataset,
         batch_size=args.batch_size,
