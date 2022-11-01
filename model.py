@@ -3,6 +3,7 @@ import torch.nn.functional as F
 from torchvision.models import efficientnet_b1, efficientnet_b4, efficientnet_v2_l
 import torchvision.models as models
 from facenet_pytorch import InceptionResnetV1
+import torch
 
 
 class BaseModel(nn.Module):
@@ -56,21 +57,21 @@ class EfficientNet_B1(nn.Module):
 
         self.model = models.efficientnet_b1(weights=models.EfficientNet_B1_Weights.DEFAULT)
         self.model.classifier = nn.Sequential(
-            nn.Dropout(p=0.8, inplace=True),
-            nn.Linear(1280, num_classes, bias=True)
+            nn.Dropout(p=0.8, inplace=True), nn.Linear(1280, num_classes, bias=True)
         )
-        
+
         self.name = "EfficientNet_B1"
 
         self.init_params()
 
     def forward(self, x):
-        x = self.model(x)      
+        x = self.model(x)
         return x
 
     def init_params(self):
         nn.init.kaiming_uniform_(self.model.classifier[1].weight)
         nn.init.zeros_(self.model.classifier[1].bias)
+
 
 class InceptionResnet(nn.Module):
     """
@@ -115,6 +116,46 @@ class Efficientnet_v2_l(nn.Module):
         x = self.backbone(x)
         x = self.classifier(x)
         return x
+
+    def init_weights(self, m):
+        nn.init.kaiming_uniform_(m.weight)
+        nn.init.constant_(m.bias, 0)
+
+
+class InceptionResnet_MS(nn.Module):
+    """
+    Total params: 27,979,383
+    Trainable params: 27,979,383
+    Non-trainable params: 0
+    ----------------------------------------------------------------
+    Input size (MB): 2.25
+    Forward/backward pass size (MB): 840.53
+    Params size (MB): 106.73
+    Estimated Total Size (MB): 949.52
+    """
+
+    def __init__(self, num_classes, classifier_num, dropout_p):
+        super().__init__()
+        self.backbone = InceptionResnetV1(pretrained="vggface2", classify=True,)
+        self.n_features = self.backbone.logits.out_features
+        self.classifier = nn.Linear(self.n_features, num_classes)  # no dropout
+
+        self.classifier_num = classifier_num
+        self.dropout_p = dropout_p
+        self.high_dropout = nn.Dropout(p=self.dropout_p)
+
+        self.init_weights(self.classifier)
+
+    def forward(self, x):
+        x = self.backbone(x)
+        logits = torch.mean(
+            torch.stack(
+                [self.classifier(self.high_dropout(x)) for _ in range(self.classifier_num)], dim=0,
+            ),
+            dim=0,
+        )
+        # x = logits
+        return logits
 
     def init_weights(self, m):
         nn.init.kaiming_uniform_(m.weight)

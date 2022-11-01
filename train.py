@@ -12,6 +12,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import torch
 from torch.optim.lr_scheduler import StepLR, CosineAnnealingLR
+from adamp import AdamP
 from torch.utils.data import DataLoader
 from torch.utils.tensorboard import SummaryWriter
 
@@ -148,7 +149,12 @@ def train(data_dir, model_dir, args):
 
     # -- model
     model_module = getattr(import_module("model"), args.model)  # default: BaseModel
-    model = model_module(num_classes=num_classes).to(device)
+    if args.model == "InceptionResnet_MS":
+        model = model_module(
+            num_classes=num_classes, dropout_p=args.dropout_p, classifier_num=args.classifier_num
+        ).to(device)
+    else:
+        model = model_module(num_classes=num_classes).to(device)
     # torchsummary
     # summary(model, (3, 384, 512))
     model = torch.nn.DataParallel(model)
@@ -157,10 +163,15 @@ def train(data_dir, model_dir, args):
     criterion1 = create_criterion(args.criterion1)  # default: cross_entropy
     criterion2 = create_criterion(args.criterion2)  # label_smoothing
     criterion3 = create_criterion(args.criterion3)  # focal
-    opt_module = getattr(import_module("torch.optim"), args.optimizer)  # default: SGD
+    opt_module = (
+        getattr(import_module("torch.optim"), args.optimizer)
+        if args.optimizer != "AdamP"
+        else AdamP
+    )  # default: SGD
     optimizer = opt_module(
-        filter(lambda p: p.requires_grad, model.parameters()), lr=args.lr, weight_decay=5e-4
+        filter(lambda p: p.requires_grad, model.parameters()), lr=args.lr, weight_decay=args.lr * 10
     )
+    # print(optimizer)
 
     # -- scheduler
     if args.scheduler == "StepLR":
@@ -276,7 +287,7 @@ def train(data_dir, model_dir, args):
                         "Tr gen f1": train_f1_gen,
                         "Tr age loss": train_age_loss,
                         "Tr age f1": train_f1_age,
-                        "cm": wandb.sklearn.plot_confusion_matrix(labels.numpy(), preds),
+                        # "cm": wandb.sklearn.plot_confusion_matrix(labels.numpy(), preds),
                     }
                 )
 
@@ -367,20 +378,20 @@ def train(data_dir, model_dir, args):
             val_f1_age = f1_score(true_age_labels, age_preds, average="macro")
 
             best_val_acc = max(best_val_acc, val_acc)
-            best_val_f1 = max(best_val_f1, val_f1)
-            if val_loss < best_val_loss:
-                print(f"New best model for val loss : {val_loss:4.2}! saving the best model..")
+            best_val_loss = min(best_val_loss, val_loss)
+            if val_f1 > best_val_f1:
+                print(f"New best model for val f1 : {val_f1:4.2}! saving the best model..")
                 torch.save(model.module.state_dict(), f"{save_dir}/best.pth")
-                best_val_loss = val_loss
+                best_val_f1 = val_f1
 
             print(
-                f"[Val] acc : {val_acc:4.2%} || loss : {val_loss:4.2} || "
+                f"[Val] acc : {float(val_acc):4.2%} || loss : {float(val_loss):4.2} || "
                 f"best acc : {best_val_acc:4.2%} || best loss : {best_val_loss:4.2} || "
                 f"f1 score : {val_f1:4.2} || best f1 : {best_val_f1:4.2}"
             )
             logger.add_scalar("Val/loss", val_loss, epoch)
             logger.add_scalar("Val/accuracy", val_acc, epoch)
-            # logger.add_scalar("Val/f1score", val_f1, epoch)
+            logger.add_scalar("Val/f1score", val_f1, epoch)
             # logger.add_figure("results", figure, epoch)
             print()
 
