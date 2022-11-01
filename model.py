@@ -50,24 +50,27 @@ class MyModel(nn.Module):
         return x
 
 
-class Efficientnet_b1(nn.Module):
+class EfficientNet_B1(nn.Module):
     def __init__(self, num_classes):
         super().__init__()
-        self.backbone = efficientnet_b1(weight="DEFAULT")
-        self.n_features = self.backbone.classifier[1].out_features
-        self.classifier = nn.Linear(self.n_features, num_classes)
 
-        self.init_weights(self.classifier)
+        self.model = models.efficientnet_b1(weights=models.EfficientNet_B1_Weights.DEFAULT)
+        self.model.classifier = nn.Sequential(
+            nn.Dropout(p=0.8, inplace=True),
+            nn.Linear(1280, num_classes, bias=True)
+        )
+        
+        self.name = "EfficientNet_B1"
+
+        self.init_params()
 
     def forward(self, x):
-        x = self.backbone(x)
-        x = self.classifier(x)
+        x = self.model(x)      
         return x
 
-    def init_weights(self, m):
-        nn.init.kaiming_uniform_(m.weight)
-        nn.init.constant_(m.bias, 0)
-
+    def init_params(self):
+        nn.init.kaiming_uniform_(self.model.classifier[1].weight)
+        nn.init.zeros_(self.model.classifier[1].bias)
 
 class InceptionResnet(nn.Module):
     """
