@@ -21,6 +21,7 @@ def inference_val(checkpoint, model, optimizer, criterions, dataloader, device, 
             images, mask_labels, age_gender_labels = images.to(device), mask_labels.long().to(device), age_gender_labels.long().to(device)
 
             mask_predict, age_gender_predict = model(images)
+
             mask_loss = criterions[0](mask_predict, mask_labels)*loss_rates[0]
             age_gender_loss = criterions[1](age_gender_predict, age_gender_labels)*loss_rates[1]
 

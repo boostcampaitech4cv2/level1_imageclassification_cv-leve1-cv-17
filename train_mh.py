@@ -14,6 +14,7 @@ def train(model, optimizer, criterions, dataloader, device, epoch, loss_rates):
 
         optimizer.zero_grad()
         mask_predict, age_gender_predict = model(images)
+
         mask_loss = criterions[0](mask_predict, mask_labels)*loss_rates[0]
         age_gender_loss = criterions[1](age_gender_predict, age_gender_labels)*loss_rates[1]
 
@@ -42,7 +43,6 @@ def train(model, optimizer, criterions, dataloader, device, epoch, loss_rates):
     
     return (train_avg_loss, mask_avg_loss, age_gender_avg_loss, mask_score, age_gender_score)
 
-
 def validation(model, criterions, dataloader, device, epoch, loss_rates):
     model.eval()
     mask_predicts, mask_label_list, mask_loss_list = [], [], []
@@ -54,6 +54,7 @@ def validation(model, criterions, dataloader, device, epoch, loss_rates):
             images, mask_labels, age_gender_labels = images.to(device), mask_labels.long().to(device), age_gender_labels.long().to(device)
 
             mask_predict, age_gender_predict = model(images)
+
             mask_loss = criterions[0](mask_predict, mask_labels)*loss_rates[0]
             age_gender_loss = criterions[1](age_gender_predict, age_gender_labels)*loss_rates[1]
 

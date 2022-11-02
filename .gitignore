@@ -194,3 +194,5 @@ cython_debug/
 
 # End of https://www.toptal.com/developers/gitignore/api/python,jupyternotebooks
 EDA/EDA.ipynb_copy.ipynb
+events.out.*
+*.pth
