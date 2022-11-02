@@ -11,6 +11,9 @@ from dataset import MaskMultiLabelDataset, TestDataset, MaskBaseDataset
 
 import yaml
 from easydict import EasyDict
+from tqdm import tqdm
+import torch.nn.functional as F
+import numpy as np
 
 
 def load_model(saved_model, num_classes, device):
@@ -34,57 +37,76 @@ def load_model(saved_model, num_classes, device):
 
 @torch.no_grad()
 def inference(data_dir, model_dir, output_dir, args):
-    """
-    """
     use_cuda = torch.cuda.is_available()
     device = torch.device("cuda" if use_cuda else "cpu")
 
-    num_classes = MaskMultiLabelDataset.num_classes  # 18
-    model = load_model(model_dir, num_classes, device).to(device)
-    model.eval()
+    oof_pred = None
+    for fold_num in range(args.num_folds):
+        model_path = f"{model_dir}-{fold_num+1}-fold-{args.num_folds}"
 
-    img_root = os.path.join(data_dir, "images")
-    info_path = os.path.join(data_dir, "info.csv")
-    info = pd.read_csv(info_path)
+        num_classes = MaskMultiLabelDataset.num_classes  # 8
+        model = load_model(model_path, num_classes, device).to(device)
+        model.eval()
 
-    img_paths = [os.path.join(img_root, img_id) for img_id in info.ImageID]
-    dataset = TestDataset(img_paths, args.resize)
+        img_root = os.path.join(data_dir, "images")
+        info_path = os.path.join(data_dir, "info.csv")
+        info = pd.read_csv(info_path)
 
-    # -- augmentation
-    transform_module = getattr(
-        import_module("dataset"), args.augmentation
-    )  # default: BaseAugmentation
-    transform = transform_module(
-        resize=args.resize, crop_size=args.crop_size, mean=dataset.mean, std=dataset.std,
-    )
-    dataset.set_transform(transform)
+        img_paths = [os.path.join(img_root, img_id) for img_id in info.ImageID]
+        dataset = TestDataset(img_paths, args.resize)
 
-    loader = torch.utils.data.DataLoader(
-        dataset,
-        batch_size=args.batch_size,
-        num_workers=multiprocessing.cpu_count() // 2,
-        shuffle=False,
-        pin_memory=use_cuda,
-        drop_last=False,
-    )
+        # -- augmentation
+        transform_module = getattr(
+            import_module("dataset"), args.augmentation
+        )  # default: BaseAugmentation
+        transform = transform_module(
+            resize=args.resize, crop_size=args.crop_size, mean=dataset.mean, std=dataset.std,
+        )
+        dataset.set_transform(transform)
 
-    print("Calculating inference results..")
-    preds = []
-    with torch.no_grad():
-        for idx, images in enumerate(loader):
-            images = images.to(device)
-            out = model(images)
-            (mask_out, gender_out, age_out) = torch.split(out, [3, 2, 3], dim=1)
-            pred_mask = torch.argmax(mask_out, dim=-1)
-            pred_gender = torch.argmax(gender_out, dim=-1)
-            pred_age = torch.argmax(age_out, dim=-1)
+        loader = torch.utils.data.DataLoader(
+            dataset,
+            batch_size=args.batch_size,
+            num_workers=multiprocessing.cpu_count() // 2,
+            shuffle=False,
+            pin_memory=use_cuda,
+            drop_last=False,
+        )
 
-            pred = pred_mask * 6 + pred_gender * 3 + pred_age
-            preds.extend(pred.cpu().numpy())
+        print("Calculating inference results..")
+        preds = []
+        with torch.no_grad():
+            for idx, images in enumerate((loader)):
+                images = images.to(device)
+                out = model(images)
+                # (mask_out, gender_out, age_out) = torch.split(out, [3, 2, 3], dim=1)
+                # pred_mask = torch.argmax(mask_out, dim=-1)
+                # pred_gender = torch.argmax(gender_out, dim=-1)
+                # pred_age = torch.argmax(age_out, dim=-1)
+
+                # pred = pred_mask * 6 + pred_gender * 3 + pred_age
+
+                preds.extend(out.cpu().numpy())
+
+            fold_pred = np.array(preds)
+
+            if oof_pred is None:
+                oof_pred = fold_pred / args.num_folds
+            else:
+                oof_pred += fold_pred / args.num_folds
+
+            model.cpu()
+            del model
+            torch.cuda.empty_cache()
+
+    pred_all = np.split(oof_pred, [3, 5, 8], axis=1)
+    pred_mask = np.argmax(pred_all[0], axis=-1)
+    pred_gender = np.argmax(pred_all[1], axis=-1)
+    pred_age = np.argmax(pred_all[2], axis=-1)
+    preds = pred_mask * 6 + pred_gender * 3 + pred_age
 
     info["ans"] = preds
     save_path = os.path.join(output_dir, f"output_{model_dir.split('/')[-1]}.csv")
-    print(save_path)
     info.to_csv(save_path, index=False)
     print(f"Inference Done! Inference result saved at {save_path}")
 
