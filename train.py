@@ -7,6 +7,7 @@ import random
 import re
 from importlib import import_module
 from pathlib import Path
+from datetime import datetime
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -22,7 +23,6 @@ import wandb
 from sklearn.metrics import f1_score
 import yaml
 from easydict import EasyDict
-from metric import EarlyStopping
 
 
 def seed_everything(seed):
@@ -169,9 +169,6 @@ def train(data_dir, model_dir, args):
     logger = SummaryWriter(log_dir=save_dir)
     with open(os.path.join(save_dir, "config.json"), "w", encoding="utf-8") as f:
         json.dump(vars(args), f, ensure_ascii=False, indent=4)
-        
-    # -- early stopping
-    early_stop = EarlyStopping(patience=args.patience, verbose=True, path=save_dir)
 
     best_val_acc, best_val_f1, best_val_loss = 0, 0, np.inf
 
@@ -208,18 +205,15 @@ def train(data_dir, model_dir, args):
             preds_age = torch.argmax(age_outs, dim=-1)
             preds = preds_mask * 6 + preds_gender * 3 + preds_age
 
+            # -- loss
             mask_loss = criterion1(mask_outs, mask_labels)
             gender_loss = criterion2(gender_outs, gender_labels)
             age_loss = criterion3(age_outs, age_labels)
 
             # weighted loss
             loss_list = [mask_loss, gender_loss, age_loss]
-<<<<<<< HEAD
-            weight_list = [0.2, 0.2, 0.6]
-=======
             weight_list = args.loss_rate
             weight_sum = sum(weight_list)
->>>>>>> origin/main
             loss = weighted_loss(loss_list, weight_list)
 
             loss.backward()
@@ -289,8 +283,10 @@ def train(data_dir, model_dir, args):
             val_acc_items = []
             figure = None
 
-            model_preds = []
-            true_labels = []
+            model_preds, true_labels = [], []
+            mask_preds, true_mask_labels = [], []
+            gen_preds, true_gen_labels = [], []
+            age_preds, true_age_labels = [], []
 
             for val_batch in val_loader:
                 inputs, (mask_labels, gender_labels, age_labels) = val_batch
@@ -316,11 +312,7 @@ def train(data_dir, model_dir, args):
 
                 # weighted loss
                 loss_list = [mask_loss, gender_loss, age_loss]
-<<<<<<< HEAD
-                weight_list = [0.25, 0.25, 0.5]
-=======
                 weight_list = args.loss_rate
->>>>>>> origin/main
                 loss = weighted_loss(loss_list, weight_list)
 
                 loss_item = loss.item()
@@ -351,10 +343,6 @@ def train(data_dir, model_dir, args):
             val_age_loss = np.sum(val_age_loss_items) / len(val_loader)
 
             val_acc = np.sum(val_acc_items) / len(val_set)
-<<<<<<< HEAD
-            val_f1 = competition_metric(true_labels, model_preds)
-=======
->>>>>>> origin/main
 
             val_f1 = f1_score(true_labels, model_preds, average='macro')
             val_f1_mask = f1_score(true_mask_labels, mask_preds, average='macro')
@@ -390,8 +378,11 @@ if __name__ == "__main__":
     with open(CONFIG_FILE_NAME, "r") as yml_config_file:
         args = yaml.load(yml_config_file, Loader=yaml.FullLoader)
         args = EasyDict(args["train"])
-
+    
+    with open(f'./log/config_{datetime.today()}.yaml', 'w') as f:
+        yaml.dump(args, f, default_flow_style=False)
     print(args)
+    
 
     data_dir = args.data_dir
     model_dir = args.model_dir
@@ -413,11 +404,7 @@ if __name__ == "__main__":
     }
 
     wandb.init(
-<<<<<<< HEAD
-        project="pstage_01", entity="arislid", name=args.experiment_name, config=args,
-=======
         project=args.project, entity=args.entity, name=args.experiment_name, config=CFG,
->>>>>>> origin/main
     )
 
     wandb.define_metric("Train Avg loss", summary="min")

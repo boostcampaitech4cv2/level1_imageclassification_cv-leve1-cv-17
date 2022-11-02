@@ -91,7 +91,7 @@ class Arcface(nn.Module):
     def forward(self, embeddings, label):
         # weights norm
         nB = len(embeddings)
-        kernel_norm = self.l2_norm(self.kernel, axis = 0)
+        kernel_norm = self.l2_norm(self.kernel, axis=0)
         cos_theta = cos_theta.clamp(-1, 1)
         cos_theta_2 = torch.pow(cos_theta, 2)
         sin_theta_2 = 1 - cos_theta_2
