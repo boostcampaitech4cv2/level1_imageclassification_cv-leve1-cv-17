@@ -1,9 +1,9 @@
+import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from torchvision.models import efficientnet_b1, efficientnet_b4, efficientnet_v2_l
 import torchvision.models as models
 from facenet_pytorch import InceptionResnetV1
-import torch
 from efficientnet_pytorch import EfficientNet
 
 
@@ -187,31 +187,44 @@ class InceptionResnet_MS(nn.Module):
             nn.init.constant_(m.bias.data, 0)
 
 
-class Efficientb7_MS(nn.Module):
-    def __init__(self, num_classes, classifier_num, dropout_p):
+class EfficientNetMaster(nn.Module):
+    def __init__(self, num_classes: int = 8):
+        """
+        Anti-SJ model presented by your master
+        Total params: 67,075,288
+        Trainable params: 67,075,288
+        Non-trainable params: 0
+        ----------------------------------------------------------------
+        Input size (MB): 0.57
+        Forward/backward pass size (MB): 1269.24
+        Params size (MB): 255.87
+        Estimated Total Size (MB): 1525.69
+        ----------------------------------------------------------------
+        """
         super().__init__()
-        self.backbone = self.load_model()
-
-        self.n_features = self.backbone._fc.out_features
-        self.classifier = nn.Linear(self.n_features, num_classes)  # no dropout
-
-        self.classifier_num = classifier_num
-        self.dropout_p = dropout_p
-        self.high_dropout = nn.Dropout(p=self.dropout_p)
-
-        self.init_weights(self.classifier)
+        self.num_classes = num_classes
+        self.model = self.get_efficientnet_model()
+        self.model._fc = nn.Sequential(
+            nn.Linear(2560, 1280), nn.GELU(), nn.Dropout(0.2), nn.Linear(1280, self.num_classes)
+        )
+        self.init_weights(self.model._fc)
 
     def forward(self, x):
-        x = self.backbone(x)
-        logits = torch.mean(
-            torch.stack(
-                [self.classifier(self.high_dropout(x)) for _ in range(self.classifier_num)], dim=0,
-            ),
-            dim=0,
-        )
-        # x = logits
-        return logits
+        x = self.model(x)
+        return x
 
     def init_weights(self, m):
-        nn.init.kaiming_uniform_(m.weight)
-        nn.init.constant_(m.bias, 0)
+        if isinstance(m, nn.Linear):
+            nn.init.kaiming_uniform_(m.weight)
+            nn.init.constant_(m.bias, 0)
+
+    def get_efficientnet_model(self):
+        model = EfficientNet.from_pretrained("efficientnet-b7")
+        model._fc = nn.Linear(2560, 128)  # match with the original efficientnet-b7
+        model.load_state_dict(
+            torch.load("/home/ubuntu/yj_study/baseline_v2/modelparam20.pt")
+        )  # load model from checkpoint
+
+        # delete the classifier and replace with a new one
+        del model._fc
+        return model
