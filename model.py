@@ -3,7 +3,7 @@ import torch.nn.functional as F
 from torchvision.models import efficientnet_b1, efficientnet_b4, efficientnet_v2_l
 import torchvision.models as models
 from facenet_pytorch import InceptionResnetV1
-
+import torch
 
 class BaseModel(nn.Module):
     def __init__(self, num_classes):
@@ -50,79 +50,103 @@ class MyModel(nn.Module):
         return x
 
 
-class Efficientnet_b1(nn.Module):
+class EfficientNet_B1(nn.Module):
     def __init__(self, num_classes):
         super().__init__()
-        self.backbone = efficientnet_b1(weight="DEFAULT")
-        self.n_features = self.backbone.classifier[1].out_features
-        self.classifier = nn.Linear(self.n_features, num_classes)
 
-        self.init_weights(self.classifier)
+        self.model = models.efficientnet_b1(weights=models.EfficientNet_B1_Weights.DEFAULT)
+        self.model.classifier = nn.Sequential(
+            nn.Dropout(p=0.8, inplace=True),
+            nn.Linear(1280, num_classes, bias=True)
+        )
+        
+        self.name = "EfficientNet_B1"
+
+        self.init_params()
 
     def forward(self, x):
-        x = self.backbone(x)
-        x = self.classifier(x)
+        x = self.model(x)      
         return x
 
-    def init_weights(self, m):
-        nn.init.kaiming_uniform_(m.weight)
-        nn.init.constant_(m.bias, 0)
+    def init_params(self):
+        nn.init.kaiming_uniform_(self.model.classifier[1].weight)
+        nn.init.zeros_(self.model.classifier[1].bias)
 
-class Efficientnet_b1_mh(nn.Module):
+
+class EfficientNet_B1_MD(nn.Module):
     def __init__(self, num_classes):
         super().__init__()
-        self.backbone = efficientnet_b1(weight="DEFAULT")
-        self.n_features = self.backbone.classifier[1].in_features
-        self.backbone = self.backbone.features
-        self.backbone = nn.Sequential(*self.backbone)
 
-        self.mask_classifier = nn.Sequential(
-            nn.AdaptiveAvgPool2d(1),
-            nn.Dropout(0.2),
-            nn.Conv2d(self.n_features, self.n_features, 1, 1, 0, bias=False),
-            nn.BatchNorm2d(self.n_features),
-            nn.ReLU(),
-            nn.Dropout(0.2),
-            nn.Conv2d(self.n_features, 3, 1, 1, 0, bias=True)
-        )
+        self.model = models.efficientnet_b1(weights=models.EfficientNet_B1_Weights.DEFAULT)
+        self.model.classifier = nn.Linear(1280, 1000, bias=True)
+        self.last_bn = nn.BatchNorm1d(1000, eps=0.001, momentum=0.1, affine=True)
+        self.logits = nn.Linear(1000, num_classes, bias=True)
 
-        self.gender_classifier = nn.Sequential(
-            nn.AdaptiveAvgPool2d(1),
-            nn.Dropout(0.2),
-            nn.Conv2d(self.n_features, self.n_features, 1, 1, 0, bias=False),
-            nn.BatchNorm2d(self.n_features),
-            nn.ReLU(),
-            nn.Dropout(0.2),
-            nn.Conv2d(self.n_features, 2, 1, 1, 0, bias=True)
-        )
+        self.dropout = nn.Dropout(0.2)
+        self.name = "EfficientNet_B1_MD"
 
-        self.age_classifier = nn.Sequential(
-            nn.AdaptiveAvgPool2d(1),
-            nn.Dropout(0.2),
-            nn.Conv2d(self.n_features, self.n_features, 1, 1, 0, bias=False),
-            nn.BatchNorm2d(self.n_features),
-            nn.ReLU(),
-            nn.Dropout(0.2),
-            nn.Conv2d(self.n_features, 3, 1, 1, 0, bias=True)
-        )
-
-        self.init_weights()
+        self.init_weights(self.model.classifier)
+        self.init_weights(self.logits)
+        self.init_weights(self.last_bn)
 
     def forward(self, x):
-        x = self.backbone(x)
+        x = self.model(x)
+        x = self.last_bn(x)
+        logits = torch.mean(
+            torch.stack(
+                [self.logits(self.dropout(x)) for _ in range(16)], dim=0,
+            ),
+            dim=0,
+        )   
+        return logits
 
-        mask = self.mask_classifier(x)
-        gender = self.gender_classifier(x)
-        age = self.age_classifier(x)
+    def init_weights(self, m):
+        if isinstance(m, nn.Linear):
+            nn.init.kaiming_uniform_(m.weight)
+            nn.init.constant_(m.bias, 0)
+        elif isinstance(m, nn.BatchNorm1d):
+            nn.init.constant_(m.weight.data, 1)
+            nn.init.constant_(m.bias.data, 0)
 
-        return mask, gender, age
 
-    def init_weights(self):
-        for m in self._modules:
-            if isinstance(m, nn.Conv2d):
-                nn.init.kaiming_uniform_(m.weight)
-                nn.init.constant_(m.bias, 0)
+class Identity(nn.Module):
+    def __init__(self):
+        super().__init__()
 
+    def forward(self, x):
+        return x
+
+
+class EfficientnetB1_MD2(nn.Module):
+    def __init__(self, num_classes) -> None:
+        super().__init__()
+        self.base_model = models.efficientnet_b1(weights=models.EfficientNet_B1_Weights.DEFAULT)
+        self.base_model.classifier = Identity()
+
+        self.dropouts = nn.ModuleList([nn.Dropout(0.2) for _ in range(16)])
+        self.fc = nn.Linear(1280, num_classes)
+
+        self.init_weights(self.fc)
+
+    def forward(self, x):
+        x = self.base_model(x)
+
+        for i, dropout in enumerate(self.dropouts):
+            if i == 0:
+                out = dropout(x.clone())
+                out = self.fc(out)
+            else:
+                temp_out = dropout(x.clone())
+                out += self.fc(temp_out)
+        return torch.sigmoid(out/len(self.dropouts))
+    
+    def init_weights(self, m):
+        if isinstance(m, nn.Linear):
+            nn.init.kaiming_uniform_(m.weight)
+            nn.init.constant_(m.bias, 0)
+        elif isinstance(m, nn.BatchNorm1d):
+            nn.init.constant_(m.weight.data, 1)
+            nn.init.constant_(m.bias.data, 0)
 
 class InceptionResnet(nn.Module):
     """

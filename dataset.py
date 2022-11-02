@@ -78,7 +78,7 @@ class CustomAugmentation2:
     def __init__(self, resize, crop_size, mean, std, **args):
         self.transform = Compose([
             CenterCrop(crop_size),
-            cutout(mask_size=40, p=0.5, cutout_inside =False),
+            cutout(mask_size=42, p=0.5, cutout_inside =False),
             Resize(resize, Image.BILINEAR),
             ToTensor(),
             Normalize(mean=mean, std=std)
@@ -120,9 +120,9 @@ class AgeLabels(int, Enum):
         except Exception:
             raise ValueError(f"Age value should be numeric, {value}")
 
-        if value < 30:
+        if value < 29:
             return cls.YOUNG
-        elif value < 60:
+        elif value < 59:
             return cls.MIDDLE
         else:
             return cls.OLD
