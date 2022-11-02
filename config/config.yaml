@@ -1,5 +1,5 @@
 train:
-  experiment_name: "Efficientnet_b1 smooth"
+  experiment_name: "EF_(CE,CE,FL)_(240,240)"
   augmentation: CustomAugmentation2 # "data augmentation type (default: BaseAugmentation)"
   batch_size: 64 # "input batch size for training (default: 64)"
   criterion1: cross_entropy # "criterion type (default: cross_entropy)"
@@ -9,9 +9,9 @@ train:
   dataset: MaskMultiLabelDataset # "dataset augmentation type (default: MaskBaseDataset)"
   epochs: 15 # "number of epochs to train (default: 1)"
   log_interval: 20 # "how many batches to wait before logging training status"
-  lr: 0.001 # "learning rate (default: 1e-3)"
+  lr: 0.0005 # "learning rate (default: 1e-3)"
   lr_decay_step: 5 # "learning rate scheduler decay step (default: 20)"
-  model: Efficientnet_b1 # "model type (default: BaseModel)"
+  model: EfficientnetB1_MD2 # "model type (default: BaseModel)"
   model_dir: ./model # null
   name: exp # "model save at {SM_MODEL_DIR}/{name}"
   optimizer: AdamW # null
@@ -25,18 +25,18 @@ train:
   val_ratio: 0.2 # "ratio for validaton (default: 0.2)"
   valid_batch_size: 1000 # "input batch size for validing (default: 1000)"
   loss_rate: # loss 1 / loss 2 / loss 3
-    - 0.25
-    - 0.25
-    - 0.5
+    - 0.8
+    - 1
+    - 1.7
   scheduler: "StepLR"
-  project: "mask_cls"
+  project: "mask_classification"
   entity: "cv17"
 valid:
   batch_size: 1000 # "input batch size for validing (default: 1000)"
   resize: # "resize size for image when you trained (default: (96, 128))"
     - 240
     - 240
-  model: Efficientnet_b1 # "model type (default: BaseModel)"
+  model: EfficientnetB1_MD2 # "model type (default: BaseModel)"
   data_dir: /opt/ml/input/data/eval
-  model_dir: ./model/Efficientnet_b1_smooth
+  model_dir: ./model/EF_(CE,CE,FL)_(240,240)2
   output_dir: ./output

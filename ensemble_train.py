@@ -302,11 +302,11 @@ def train(data_dir, model_dir, args):
                 val_f1_age = f1_score(true_age_labels, age_preds, average='macro')
 
                 best_val_acc = max(best_val_acc, val_acc)
-                best_val_f1 = max(best_val_f1, val_f1)
-                if val_loss < best_val_loss:
-                    print(f"New best model for val loss : {val_loss:4.2}! saving the best model..")
+                best_val_loss = min(best_val_loss, val_loss)
+                if val_f1 > best_val_f1:
+                    print(f"New best model for val f1 : {val_f1:4.2}! saving the best model..")
                     torch.save(model.module.state_dict(), f"{save_dir}/best_{i}.pth")
-                    best_val_loss = val_loss
+                    best_val_f1 = val_f1
                 
                 print(
                     f"[Val] acc : {val_acc:4.2%} || loss : {val_loss:4.2} || "

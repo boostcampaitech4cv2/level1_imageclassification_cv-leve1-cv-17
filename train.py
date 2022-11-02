@@ -23,6 +23,10 @@ from sklearn.metrics import f1_score
 import yaml
 from easydict import EasyDict
 
+from pytorch_metric_learning.distances import CosineSimilarity
+from pytorch_metric_learning.reducers import ThresholdReducer
+from pytorch_metric_learning.regularizers import LpRegularizer
+from pytorch_metric_learning import miners, losses
 
 def seed_everything(seed):
     torch.manual_seed(seed)
@@ -155,7 +159,7 @@ def train(data_dir, model_dir, args):
     criterion3 = create_criterion(args.criterion3) # focal
     opt_module = getattr(import_module("torch.optim"), args.optimizer)  # default: SGD
     optimizer = opt_module(
-        filter(lambda p: p.requires_grad, model.parameters()), lr=args.lr, weight_decay=5e-4
+        filter(lambda p: p.requires_grad, model.parameters()), lr=args.lr, weight_decay=5e-3
     )
 
     # -- scheduler
@@ -369,7 +373,9 @@ def train(data_dir, model_dir, args):
             wandb.log({'Val Avg Loss': val_loss / weight_sum, 'Val Avg f1': val_f1, 'Val mask loss': val_mask_loss, 'Val mask f1': val_f1_mask, 
                 'Val gen loss': val_gender_loss, 'Val gen f1': val_f1_gender, 'Val age loss': val_age_loss, 'Val age f1': val_f1_age})
 
-
+            # wandb.log({"conf_mat" : wandb.plot.confusion_matrix(
+            #                 preds=model_preds, y_true=true_labels,
+            #                 class_names=[str(i) for i in range(18)])})
 if __name__ == "__main__":
 
     CONFIG_FILE_NAME = "./config/config.yaml"

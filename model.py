@@ -3,7 +3,7 @@ import torch.nn.functional as F
 from torchvision.models import efficientnet_b1, efficientnet_b4, efficientnet_v2_l
 import torchvision.models as models
 from facenet_pytorch import InceptionResnetV1
-
+import torch
 
 class BaseModel(nn.Module):
     def __init__(self, num_classes):
@@ -71,6 +71,82 @@ class EfficientNet_B1(nn.Module):
     def init_params(self):
         nn.init.kaiming_uniform_(self.model.classifier[1].weight)
         nn.init.zeros_(self.model.classifier[1].bias)
+
+
+class EfficientNet_B1_MD(nn.Module):
+    def __init__(self, num_classes):
+        super().__init__()
+
+        self.model = models.efficientnet_b1(weights=models.EfficientNet_B1_Weights.DEFAULT)
+        self.model.classifier = nn.Linear(1280, 1000, bias=True)
+        self.last_bn = nn.BatchNorm1d(1000, eps=0.001, momentum=0.1, affine=True)
+        self.logits = nn.Linear(1000, num_classes, bias=True)
+
+        self.dropout = nn.Dropout(0.2)
+        self.name = "EfficientNet_B1_MD"
+
+        self.init_weights(self.model.classifier)
+        self.init_weights(self.logits)
+        self.init_weights(self.last_bn)
+
+    def forward(self, x):
+        x = self.model(x)
+        x = self.last_bn(x)
+        logits = torch.mean(
+            torch.stack(
+                [self.logits(self.dropout(x)) for _ in range(16)], dim=0,
+            ),
+            dim=0,
+        )   
+        return logits
+
+    def init_weights(self, m):
+        if isinstance(m, nn.Linear):
+            nn.init.kaiming_uniform_(m.weight)
+            nn.init.constant_(m.bias, 0)
+        elif isinstance(m, nn.BatchNorm1d):
+            nn.init.constant_(m.weight.data, 1)
+            nn.init.constant_(m.bias.data, 0)
+
+
+class Identity(nn.Module):
+    def __init__(self):
+        super().__init__()
+
+    def forward(self, x):
+        return x
+
+
+class EfficientnetB1_MD2(nn.Module):
+    def __init__(self, num_classes) -> None:
+        super().__init__()
+        self.base_model = models.efficientnet_b1(weights=models.EfficientNet_B1_Weights.DEFAULT)
+        self.base_model.classifier = Identity()
+
+        self.dropouts = nn.ModuleList([nn.Dropout(0.2) for _ in range(16)])
+        self.fc = nn.Linear(1280, num_classes)
+
+        self.init_weights(self.fc)
+
+    def forward(self, x):
+        x = self.base_model(x)
+
+        for i, dropout in enumerate(self.dropouts):
+            if i == 0:
+                out = dropout(x.clone())
+                out = self.fc(out)
+            else:
+                temp_out = dropout(x.clone())
+                out += self.fc(temp_out)
+        return torch.sigmoid(out/len(self.dropouts))
+    
+    def init_weights(self, m):
+        if isinstance(m, nn.Linear):
+            nn.init.kaiming_uniform_(m.weight)
+            nn.init.constant_(m.bias, 0)
+        elif isinstance(m, nn.BatchNorm1d):
+            nn.init.constant_(m.weight.data, 1)
+            nn.init.constant_(m.bias.data, 0)
 
 class InceptionResnet(nn.Module):
     """
