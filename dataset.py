@@ -132,6 +132,7 @@ class MaskBaseDataset(Dataset):
     num_classes = 3 * 2 * 3
 
     _file_names = {
+        "mask": MaskLabels.MASK,
         "mask1": MaskLabels.MASK,
         "mask2": MaskLabels.MASK,
         "mask3": MaskLabels.MASK,

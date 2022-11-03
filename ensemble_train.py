@@ -117,10 +117,10 @@ def train(data_dir, model_dir, args):
         optimizer = opt_module(
         filter(lambda p: p.requires_grad, model.parameters()), lr=args.lr, weight_decay=1e-2
         )
-        if args.scheduler == 'StepLR':
-            scheduler = StepLR(optimizer, args.lr_decay_step, gamma=0.5)
-        elif args.scheduler == 'CosineAnnealingLR':
-            scheduler = CosineAnnealingLR(optimizer, args.epochs)
+        # if args.scheduler == 'StepLR':
+        #     scheduler = StepLR(optimizer, args.lr_decay_step, gamma=0.5)
+        # elif args.scheduler == 'CosineAnnealingLR':
+        #     scheduler = CosineAnnealingLR(optimizer, args.epochs)
 
         best_val_acc, best_val_f1, best_val_loss = 0, 0, np.inf
 
@@ -224,7 +224,7 @@ def train(data_dir, model_dir, args):
                     # mask_matches, gender_matches, age_matches = 0, 0, 0
 
 
-            scheduler.step()
+            # scheduler.step()
 
             # val loop
             with torch.no_grad():
