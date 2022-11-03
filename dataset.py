@@ -330,9 +330,9 @@ class TestDataset(Dataset):
         self.img_paths = img_paths
         self.mean = mean
         self.std = std
-        # self.transform = Compose(
-        #     [Resize(resize, Image.BILINEAR), ToTensor(), Normalize(mean=mean, std=std),]
-        # )
+        self.transform = Compose(
+            [Resize(resize, Image.BILINEAR), ToTensor(), Normalize(mean=mean, std=std),]
+        )
 
     def __getitem__(self, index):
         image = Image.open(self.img_paths[index])

@@ -24,7 +24,7 @@ train:
     - 320
     - 480
   seed: 41 # "random seed (default: 42)"
-  val_ratio: 0.2 # "ratio for validaton (default: 0.2)"
+  val_ratio: 0.1 # "ratio for validaton (default: 0.2)"
   valid_batch_size: 16 # "input batch size for validing (default: 1000)"
   loss_rate: # loss 1 / loss 2 / loss 3
     - 4
@@ -33,7 +33,7 @@ train:
   scheduler: "CosineAnnealingLR"
   dropout_p: 0.3
   classifier_num: 8
-  num_folds: 5
+  num_folds: 10
   project: "mask_cls"
   entity: "cv17"
 valid:
@@ -51,4 +51,4 @@ valid:
   output_dir: /home/ubuntu/yj_study/baseline_v2/output
   dropout_p: 0.3
   classifier_num: 8
-  num_folds: 5
+  num_folds: 10
