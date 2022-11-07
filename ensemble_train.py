@@ -7,6 +7,9 @@ import random
 import re
 from importlib import import_module
 from pathlib import Path
+import pandas as pd
+import seaborn as sns
+from sklearn.metrics import confusion_matrix
 
 from sklearn.metrics import f1_score
 from sklearn.model_selection import StratifiedKFold
@@ -307,6 +310,16 @@ def train(data_dir, model_dir, args):
                     print(f"New best model for val f1 : {val_f1:4.2}! saving the best model..")
                     torch.save(model.module.state_dict(), f"{save_dir}/best_{i}.pth")
                     best_val_f1 = val_f1
+
+                    labels = [i for i in range(18)]
+
+                    cm = confusion_matrix(true_labels, model_preds, labels=labels)
+                    df_cm = pd.DataFrame(cm)
+                    plt.figure(figsize = (12,7))
+                    sns.heatmap(df_cm, annot=True)
+                    plt.xlabel('Model Predict')
+                    plt.ylabel('Ground Truth')
+                    plt.savefig(save_dir + f'/confusion_matrix_{i}.png')
                 
                 print(
                     f"[Val] acc : {val_acc:4.2%} || loss : {val_loss:4.2} || "

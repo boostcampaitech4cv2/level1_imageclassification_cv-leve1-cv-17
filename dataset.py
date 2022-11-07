@@ -319,71 +319,6 @@ class MaskSplitByProfileDataset(MaskBaseDataset):
                     self.indices[phase].append(cnt)
                     cnt += 1
 
-    # @staticmethod
-    # def _split_profile(profiles, val_ratio):
-    #     young_group, middle_group, old_group = [], [], []
-
-    #     for profile in profiles:
-    #         age = int(profile.split("_")[-1])
-
-    #         if age < 30:
-    #             young_group.append(profile)
-    #         elif age < 60:
-    #             middle_group.append(profile)
-    #         else:
-    #             old_group.append(profile)
-
-    #     young_length = len(young_group)
-    #     young_n_val = int(young_length * val_ratio)
-    #     val_young_indices = set(random.choices(range(young_length), k=young_n_val))
-    #     train_young_indices = set(range(young_length)) - val_young_indices
-
-    #     middle_length = len(middle_group)
-    #     middle_n_val = int(middle_length * val_ratio)
-    #     val_middle_indices = set(random.choices(range(middle_length), k=middle_n_val))
-    #     train_middle_indices = set(range(middle_length)) - val_middle_indices
-
-    #     old_length = len(old_group)
-    #     old_n_val = int(old_length * val_ratio)
-    #     val_old_indices = set(random.choices(range(old_length), k=old_n_val))
-    #     train_old_indices = set(range(old_length)) - val_old_indices
-
-    #     return {"train": [train_young_indices, train_middle_indices, train_old_indices], 
-    #     "val": [val_young_indices, val_middle_indices, val_old_indices]}
-
-    # def setup(self):
-    #     profiles = os.listdir(self.data_dir)
-    #     profiles = [profile for profile in profiles if not profile.startswith(".")]
-    #     split_profiles = self._split_profile(profiles, self.val_ratio)
-
-    #     cnt = 0
-    #     for phase, indices in split_profiles.items():
-    #         for indice in indices:
-    #             for _idx in indice:
-    #                 profile = profiles[_idx]
-    #                 img_folder = os.path.join(self.data_dir, profile)
-    #                 for file_name in os.listdir(img_folder):
-    #                     _file_name, ext = os.path.splitext(file_name)
-    #                     if _file_name not in self._file_names:  # "." 로 시작하는 파일 및 invalid 한 파일들은 무시합니다
-    #                         continue
-
-    #                     img_path = os.path.join(
-    #                         self.data_dir, profile, file_name
-    #                     )  # (resized_data, 000004_male_Asian_54, mask1.jpg)
-    #                     mask_label = self._file_names[_file_name]
-
-    #                     id, gender, race, age = profile.split("_")
-    #                     gender_label = GenderLabels.from_str(gender)
-    #                     age_label = AgeLabels.from_number(age)
-
-    #                     self.image_paths.append(img_path)
-    #                     self.mask_labels.append(mask_label)
-    #                     self.gender_labels.append(gender_label)
-    #                     self.age_labels.append(age_label)
-
-    #                     self.indices[phase].append(cnt)
-    #                     cnt += 1
-
     def split_dataset(self) -> List[Subset]:
         return [Subset(self, indices) for phase, indices in self.indices.items()]
 
@@ -417,7 +352,7 @@ class MaskMultiLabelDataset(MaskSplitByProfileDataset):
 
         image = self.read_image(index)
         mask_label = self.get_mask_label(index)
-        gender_label = torch.nn.functional.one_hot(torch.tensor(self.get_gender_label(index)), 2)
+        gender_label = self.get_gender_label(index)
         age_label = self.get_age_label(index)
         # multi_class_label = self.encode_multi_class(mask_label, gender_label, age_label)
 
