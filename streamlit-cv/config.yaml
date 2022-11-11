@@ -1,0 +1,12 @@
+mask:
+  0: Wear
+  1: Incorrect
+  2: Not Wear
+gender:
+  0: Male
+  1: Female
+age:
+  0: under 30
+  1: btw 30 and 60
+  2: over 60
+model_path: ./EF_(CE,CE,FL)_(260,260)/best_3.pth
